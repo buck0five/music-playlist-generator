@@ -1,0 +1,31 @@
+// models/Song.js
+
+const { DataTypes } = require('sequelize');
+const sequelize = require('../config/database');
+const Format = require('./Format');
+
+const Song = sequelize.define('Song', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  title: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
+  artist: DataTypes.STRING,
+  duration: DataTypes.INTEGER, // Duration in seconds
+  file_path: DataTypes.STRING,
+  tags: DataTypes.STRING, // Comma-separated tags
+  score: {
+    type: DataTypes.FLOAT,
+    defaultValue: 0,
+  },
+});
+
+// Associations
+Song.belongsTo(Format, { foreignKey: 'formatId' });
+Format.hasMany(Song, { foreignKey: 'formatId' });
+
+module.exports = Song;
