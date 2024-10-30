@@ -9,7 +9,7 @@ const Content = sequelize.define('Content', {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
-    allowNull: false, // Ensure 'id' cannot be NULL
+    allowNull: false,
   },
   title: {
     type: DataTypes.STRING,
@@ -41,6 +41,14 @@ const Content = sequelize.define('Content', {
   },
   score: {
     type: DataTypes.FLOAT,
+    defaultValue: 0,
+  },
+  lastPlayedAt: {
+    type: DataTypes.DATE,
+    allowNull: true,
+  },
+  playCount: {
+    type: DataTypes.INTEGER,
     defaultValue: 0,
   },
 });

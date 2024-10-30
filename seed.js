@@ -1,6 +1,14 @@
 // seed.js
 
-const { sequelize, Format, Content, Feedback, ClockTemplate, ClockSegment } = require('./models');
+const {
+  sequelize,
+  Format,
+  Content,
+  Feedback,
+  ClockTemplate,
+  ClockSegment,
+  Cart,
+} = require('./models');
 
 (async () => {
   try {
@@ -8,20 +16,16 @@ const { sequelize, Format, Content, Feedback, ClockTemplate, ClockSegment } = re
     await sequelize.sync({ force: true });
 
     // Seed Formats
-    await Format.bulkCreate([
-      { name: 'Rock', description: 'Rock music' },
-      { name: 'Jazz', description: 'Jazz music' },
+    const [rockFormat, jazzFormat] = await Promise.all([
+      Format.create({ name: 'Rock', description: 'Rock music' }),
+      Format.create({ name: 'Jazz', description: 'Jazz music' }),
     ]);
-
-    // Retrieve format IDs
-    const rockFormat = await Format.findOne({ where: { name: 'Rock' } });
-    const jazzFormat = await Format.findOne({ where: { name: 'Jazz' } });
 
     console.log('Rock Format ID:', rockFormat.id);
     console.log('Jazz Format ID:', jazzFormat.id);
 
     // Seed Contents
-    await Content.bulkCreate([
+    const contents = await Content.bulkCreate([
       {
         title: 'Rock Anthem',
         artist: 'The Rockers',
@@ -73,6 +77,41 @@ const { sequelize, Format, Content, Feedback, ClockTemplate, ClockSegment } = re
         score: 0,
       },
     ]);
+
+    // Seed Carts
+    const [songCart, adCart, jingleCart] = await Promise.all([
+      Cart.create({
+        name: 'General Songs',
+        description: 'All general songs',
+        type: 'song',
+      }),
+      Cart.create({
+        name: 'Advertisements',
+        description: 'All ad content',
+        type: 'ad',
+      }),
+      Cart.create({
+        name: 'Jingles',
+        description: 'Station jingles',
+        type: 'jingle',
+      }),
+    ]);
+
+    // Step 3.3: Associate Content with Carts
+    // Retrieve content items
+    const rockSong = await Content.findOne({ where: { title: 'Rock Anthem' } });
+    const jazzSong = await Content.findOne({ where: { title: 'Smooth Jazz' } });
+    const adContent = await Content.findOne({ where: { title: 'Ad: Buy One Get One Free' } });
+    const jingleContent = await Content.findOne({ where: { title: 'Station Jingle' } });
+
+    // Associate songs with songCart
+    await songCart.addContents([rockSong, jazzSong]);
+
+    // Associate ad with adCart
+    await adCart.addContent(adContent);
+
+    // Associate jingle with jingleCart
+    await jingleCart.addContent(jingleContent);
 
     // Seed Clock Templates
     const defaultClockTemplate = await ClockTemplate.create({

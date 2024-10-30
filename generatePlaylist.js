@@ -1,6 +1,12 @@
 // generatePlaylist.js
 
-const { Content, Feedback, ClockTemplate, ClockSegment } = require('./models');
+const {
+  Content,
+  Feedback,
+  ClockTemplate,
+  ClockSegment,
+  Cart,
+} = require('./models');
 const Sequelize = require('sequelize');
 const { Op } = Sequelize;
 const fs = require('fs');
@@ -66,30 +72,52 @@ const generatePlaylist = async (preferredFormats) => {
     const contentPools = {};
 
     // Get unique content types from clock segments
-    const contentTypes = [...new Set(clockTemplate.ClockSegments.map(segment => segment.contentType))];
+    const contentTypes = [
+      ...new Set(
+        clockTemplate.ClockSegments.map((segment) => segment.contentType)
+      ),
+    ];
 
-    // Fetch content for each content type
     for (const type of contentTypes) {
-      let contents;
-      if (type === 'song') {
-        contents = await Content.findAll({
-          where: {
-            contentType: 'song',
-            formatId: { [Op.in]: preferredFormats },
+      let contents = [];
+
+      // Fetch carts of the corresponding type
+      const carts = await Cart.findAll({
+        where: { type },
+        include: [
+          {
+            model: Content,
+            through: { attributes: [] },
+            where:
+              type === 'song'
+                ? { formatId: { [Op.in]: preferredFormats } }
+                : {},
+            order: [['score', 'DESC']],
           },
-          order: [['score', 'DESC']],
-        });
-      } else {
-        contents = await Content.findAll({
-          where: { contentType: type },
-        });
+        ],
+      });
+
+      // Combine contents from all carts
+      for (const cart of carts) {
+        contents.push(...cart.Contents);
       }
 
       if (contents.length === 0) {
         throw new Error(`No content found for content type: ${type}`);
       }
 
-      contentPools[type] = shuffleArray(contents);
+      // Implement rotation policy: Sort by lastPlayedAt and playCount
+      contents.sort((a, b) => {
+        const aTime = a.lastPlayedAt ? new Date(a.lastPlayedAt) : new Date(0);
+        const bTime = b.lastPlayedAt ? new Date(b.lastPlayedAt) : new Date(0);
+        if (aTime - bTime !== 0) {
+          return aTime - bTime;
+        } else {
+          return a.playCount - b.playCount;
+        }
+      });
+
+      contentPools[type] = contents;
     }
 
     // Generate the playlist based on the clock template
@@ -102,9 +130,43 @@ const generatePlaylist = async (preferredFormats) => {
         const { contentType } = segment;
         const pool = contentPools[contentType];
 
-        // Rotate through the pool to prevent immediate repeats
-        const contentItem = pool.shift();
-        pool.push(contentItem);
+        if (!pool || pool.length === 0) {
+          console.warn(`No available content for type: ${contentType}`);
+          continue;
+        }
+
+        let contentItem;
+        const now = new Date();
+
+        // Implement rotation policy
+        const MIN_ROTATION_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+
+        for (let i = 0; i < pool.length; i++) {
+          const candidate = pool[i];
+          const lastPlayedAt = candidate.lastPlayedAt
+            ? new Date(candidate.lastPlayedAt)
+            : new Date(0);
+          const timeSinceLastPlayed = now - lastPlayedAt;
+
+          if (timeSinceLastPlayed >= MIN_ROTATION_INTERVAL) {
+            contentItem = candidate;
+            // Move the selected content to the end of the pool
+            pool.splice(i, 1);
+            pool.push(contentItem);
+            break;
+          }
+        }
+
+        if (!contentItem) {
+          // If all content has been played recently, pick the least recently played
+          contentItem = pool.shift();
+          pool.push(contentItem);
+        }
+
+        // Update lastPlayedAt and playCount
+        contentItem.lastPlayedAt = now;
+        contentItem.playCount = (contentItem.playCount || 0) + 1;
+        await contentItem.save();
 
         playlistContent += formatContentEntry(contentItem);
         playlistDuration += contentItem.duration;

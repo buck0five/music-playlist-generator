@@ -8,6 +8,8 @@ const Content = require('./Content');
 const Feedback = require('./Feedback');
 const ClockTemplate = require('./ClockTemplate');
 const ClockSegment = require('./ClockSegment');
+const Cart = require('./Cart');
+const ContentCart = require('./ContentCart'); // Import the join table model
 
 // Define associations
 
@@ -27,7 +29,10 @@ Format.hasMany(ClockTemplate, { foreignKey: 'formatId' });
 ClockSegment.belongsTo(ClockTemplate, { foreignKey: 'clockTemplateId', as: 'ClockTemplate' });
 ClockTemplate.hasMany(ClockSegment, { foreignKey: 'clockTemplateId', as: 'ClockSegments' });
 
-// Export models and sequelize instance
+// Content and Cart association (Many-to-Many)
+Content.belongsToMany(Cart, { through: ContentCart, foreignKey: 'contentId', otherKey: 'cartId' });
+Cart.belongsToMany(Content, { through: ContentCart, foreignKey: 'cartId', otherKey: 'contentId' });
+
 module.exports = {
   sequelize,
   Sequelize,
@@ -36,4 +41,6 @@ module.exports = {
   Feedback,
   ClockTemplate,
   ClockSegment,
+  Cart,
+  ContentCart, // Export if needed elsewhere
 };
