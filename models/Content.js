@@ -2,55 +2,35 @@
 
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
-const Format = require('./Format');
 
 const Content = sequelize.define('Content', {
   id: {
     type: DataTypes.INTEGER,
     primaryKey: true,
     autoIncrement: true,
-    allowNull: false,
   },
   title: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  artist: DataTypes.STRING,
-  duration: {
-    type: DataTypes.INTEGER,
+  contentType: {
+    type: DataTypes.STRING,
     allowNull: false,
   },
   file_path: {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  contentType: {
-    type: DataTypes.ENUM('song', 'ad', 'jingle', 'network_segment'),
+  duration: {
+    type: DataTypes.INTEGER, // Duration in seconds
     allowNull: false,
   },
-  tags: DataTypes.STRING,
-  formatId: {
-    type: DataTypes.INTEGER,
+  tags: {
+    type: DataTypes.STRING,
     allowNull: true,
-    references: {
-      model: Format,
-      key: 'id',
-    },
-    onUpdate: 'CASCADE',
-    onDelete: 'SET NULL',
-  },
-  score: {
-    type: DataTypes.FLOAT,
-    defaultValue: 0,
-  },
-  lastPlayedAt: {
-    type: DataTypes.DATE,
-    allowNull: true,
-  },
-  playCount: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0,
   },
 });
+
+// No associations here; they are defined in models/index.js
 
 module.exports = Content;

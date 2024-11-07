@@ -2,122 +2,117 @@
 
 const {
   sequelize,
-  Format,
+  User,
+  Platform,
+  Company,
+  Station,
   Content,
-  Feedback,
+  ContentLibrary,
+  ContentLibraryAssignment,
   ClockTemplate,
   ClockSegment,
-  Cart,
 } = require('./models');
 
 (async () => {
   try {
-    // Synchronize the database (drops and recreates tables)
     await sequelize.sync({ force: true });
 
-    // Seed Formats
-    const [rockFormat, jazzFormat] = await Promise.all([
-      Format.create({ name: 'Rock', description: 'Rock music' }),
-      Format.create({ name: 'Jazz', description: 'Jazz music' }),
+    // Seed Platforms
+    const [mdRadio, toolTimeRadio] = await Promise.all([
+      Platform.create({ name: 'MD Radio' }),
+      Platform.create({ name: 'Tool Time Radio' }),
     ]);
 
-    console.log('Rock Format ID:', rockFormat.id);
-    console.log('Jazz Format ID:', jazzFormat.id);
+    // Seed Companies
+    const [bobsHardware, jimsHardware] = await Promise.all([
+      Company.create({ name: "Bob's Hardware", platformId: toolTimeRadio.id }),
+      Company.create({ name: "Jim's Hardware", platformId: toolTimeRadio.id }),
+    ]);
+
+    // Seed Stations
+    const bobsStation = await Station.create({
+      name: 'Bob Hardware Station 1',
+      companyId: bobsHardware.id,
+    });
+
+    const jimsStations = await Promise.all([
+      Station.create({ name: 'Jim Hardware Station 1', companyId: jimsHardware.id }),
+      Station.create({ name: 'Jim Hardware Station 2', companyId: jimsHardware.id }),
+      // Add more stations if needed
+    ]);
+
+    // Seed Users
+    const adminUser = await User.create({
+      username: 'admin',
+      email: 'admin@example.com',
+      password: 'adminpassword',
+      role: 'admin',
+    });
+
+    const bobUser = await User.create({
+      username: 'bobmanager',
+      email: 'bobmanager@example.com',
+      password: 'bobpassword',
+      role: 'end_user',
+    });
+
+    // Associate Bob's user with Bob's station
+    await bobUser.addAssignedStations(bobsStation); // Updated method name
+
+    // Seed Content Libraries
+    const toolAdsLibrary = await ContentLibrary.create({ name: 'Tool Ads Library' });
+    const toolMusicLibrary = await ContentLibrary.create({ name: 'Tool Music Library' });
 
     // Seed Contents
     const contents = await Content.bulkCreate([
+      // Ads
       {
-        title: 'Rock Anthem',
-        artist: 'The Rockers',
-        duration: 300,
-        file_path: '/path/to/rock-anthem.mp3',
-        contentType: 'song',
-        tags: 'energetic,guitar,drums',
-        formatId: rockFormat.id,
-        score: 0,
-      },
-      {
-        title: 'Smooth Jazz',
-        artist: 'Jazz Masters',
-        duration: 240,
-        file_path: '/path/to/smooth-jazz.mp3',
-        contentType: 'song',
-        tags: 'smooth,saxophone,relaxing',
-        formatId: jazzFormat.id,
-        score: 0,
-      },
-      {
-        title: 'Ad: Buy One Get One Free',
-        artist: null,
-        duration: 30,
-        file_path: '/path/to/ad1.mp3',
+        title: 'Tool Sale Ad',
         contentType: 'ad',
-        tags: 'promotion,sale',
-        formatId: null,
-        score: 0,
+        file_path: '/ads/tool-sale.mp3',
+        duration: 30,
+        tags: 'tools,sale',
       },
+      // Music
       {
-        title: 'Station Jingle',
-        artist: null,
-        duration: 15,
-        file_path: '/path/to/jingle1.mp3',
-        contentType: 'jingle',
-        tags: 'station,branding',
-        formatId: null,
-        score: 0,
+        title: 'Hardware Rock Song',
+        contentType: 'song',
+        file_path: '/music/hardware-rock.mp3',
+        duration: 240,
+        tags: 'rock,hardware',
       },
-      {
-        title: 'News Update',
-        artist: null,
-        duration: 120,
-        file_path: '/path/to/news.mp3',
-        contentType: 'network_segment',
-        tags: 'news,update',
-        formatId: null,
-        score: 0,
-      },
+      // Add more content as needed
     ]);
 
-    // Seed Carts
-    const [songCart, adCart, jingleCart] = await Promise.all([
-      Cart.create({
-        name: 'General Songs',
-        description: 'All general songs',
-        type: 'song',
-      }),
-      Cart.create({
-        name: 'Advertisements',
-        description: 'All ad content',
-        type: 'ad',
-      }),
-      Cart.create({
-        name: 'Jingles',
-        description: 'Station jingles',
-        type: 'jingle',
-      }),
+    // Associate Content with Content Libraries
+    const ads = contents.filter((c) => c.contentType === 'ad');
+    const songs = contents.filter((c) => c.contentType === 'song');
+
+    // Update association methods based on the new alias
+    await Promise.all([
+      toolAdsLibrary.addContents(ads),
+      toolMusicLibrary.addContents(songs),
     ]);
 
-    // Step 3.3: Associate Content with Carts
-    // Retrieve content items
-    const rockSong = await Content.findOne({ where: { title: 'Rock Anthem' } });
-    const jazzSong = await Content.findOne({ where: { title: 'Smooth Jazz' } });
-    const adContent = await Content.findOne({ where: { title: 'Ad: Buy One Get One Free' } });
-    const jingleContent = await Content.findOne({ where: { title: 'Station Jingle' } });
-
-    // Associate songs with songCart
-    await songCart.addContents([rockSong, jazzSong]);
-
-    // Associate ad with adCart
-    await adCart.addContent(adContent);
-
-    // Associate jingle with jingleCart
-    await jingleCart.addContent(jingleContent);
+    // Assign Content Libraries to Platforms
+    await ContentLibraryAssignment.bulkCreate([
+      {
+        contentLibraryId: toolAdsLibrary.id,
+        assignableType: 'Platform',
+        assignableId: toolTimeRadio.id,
+      },
+      {
+        contentLibraryId: toolMusicLibrary.id,
+        assignableType: 'Platform',
+        assignableId: toolTimeRadio.id,
+      },
+    ]);
 
     // Seed Clock Templates
     const defaultClockTemplate = await ClockTemplate.create({
       name: 'Default Clock',
-      description: 'Standard clock template for all formats',
-      formatId: null, // Set a formatId if you have format-specific templates
+      description: 'Standard clock template for all platforms',
+      formatId: null,
     });
 
     // Seed Clock Segments
@@ -126,25 +121,13 @@ const {
         clockTemplateId: defaultClockTemplate.id,
         order: 1,
         contentType: 'song',
-        duration: 240, // 4 minutes
+        duration: 240,
       },
       {
         clockTemplateId: defaultClockTemplate.id,
         order: 2,
         contentType: 'ad',
-        duration: 60, // 1 minute
-      },
-      {
-        clockTemplateId: defaultClockTemplate.id,
-        order: 3,
-        contentType: 'song',
-        duration: 240,
-      },
-      {
-        clockTemplateId: defaultClockTemplate.id,
-        order: 4,
-        contentType: 'jingle',
-        duration: 30, // 30 seconds
+        duration: 60,
       },
       // Add more segments as needed
     ]);

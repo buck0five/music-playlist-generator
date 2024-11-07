@@ -1,8 +1,10 @@
 node_modules
+# Environment Variables
 .env
 
 # Node modules directory
 node_modules/
+npm-debug.log
 
 # Environment variables file
 .env

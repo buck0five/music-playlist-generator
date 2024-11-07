@@ -1,195 +1,143 @@
 // generatePlaylist.js
 
-const {
-  Content,
-  Feedback,
-  ClockTemplate,
-  ClockSegment,
-  Cart,
-} = require('./models');
-const Sequelize = require('sequelize');
-const { Op } = Sequelize;
 const fs = require('fs');
 const path = require('path');
-// const { exec } = require('child_process');
-// const { remoteUser, remoteHost, remotePath } = require('./config'); // Commented out as per your note
+const { Op } = require('sequelize');
+const {
+  User,
+  Station,
+  Company,
+  Platform,
+  Content,
+  ContentLibraryAssignment,
+  ContentLibrary,
+  ClockTemplate,
+  ClockSegment,
+} = require('./models');
 
-// Helper function to shuffle arrays
-const shuffleArray = (array) => array.sort(() => Math.random() - 0.5);
-
-// Helper function to format content entries for the playlist
-const formatContentEntry = (content) => {
-  return `#EXTINF:${content.duration},${content.artist || ''} - ${content.title}\n${content.file_path}\n`;
-};
-
-// Function to update content scores based on feedback
-const updateContentScores = async () => {
+const generatePlaylist = async (userId) => {
   try {
-    // Reset scores for all songs
-    await Content.update({ score: 0 }, { where: { contentType: 'song' } });
+    // Fetch user with associated stations, companies, and platforms
+    const user = await User.findByPk(userId, {
+      include: [
+        {
+          model: Station,
+          as: 'AssignedStations', // Updated alias
+          include: [
+            {
+              model: Company,
+              as: 'Company',
+              include: [
+                {
+                  model: Platform,
+                  as: 'Platform',
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
 
-    // Retrieve all feedback entries
-    const feedbacks = await Feedback.findAll();
-
-    // Update scores based on feedback
-    for (const feedback of feedbacks) {
-      const content = await Content.findByPk(feedback.contentId);
-      if (content && content.contentType === 'song') {
-        content.score += feedback.feedbackType === 'like' ? 1 : -1;
-        await content.save();
-      }
+    if (!user) {
+      throw new Error('User not found.');
     }
-  } catch (error) {
-    console.error('Error updating content scores:', error);
-    throw error;
-  }
-};
 
-// Main function to generate the playlist
-const generatePlaylist = async (preferredFormats) => {
-  try {
-    // Update content scores before generating the playlist
-    await updateContentScores();
+    // Collect IDs
+    const stationIds = user.AssignedStations.map((station) => station.id);
+    const companyIds = user.AssignedStations.map((station) => station.Company.id);
+    const platformIds = user.AssignedStations.map(
+      (station) => station.Company.Platform.id
+    );
 
-    // Fetch the clock template
+    // Fetch clock template (assumed to be default for simplicity)
     const clockTemplate = await ClockTemplate.findOne({
-      // If you have format-specific templates, you can include a where clause
-      where: {
-        // formatId: { [Op.in]: preferredFormats },
-      },
-      include: {
-        model: ClockSegment,
-        as: 'ClockSegments',
-      },
-      order: [[{ model: ClockSegment, as: 'ClockSegments' }, 'order', 'ASC']],
+      where: { formatId: null },
+      include: [{ model: ClockSegment, as: 'Segments' }],
+      order: [[{ model: ClockSegment, as: 'Segments' }, 'order', 'ASC']],
     });
 
     if (!clockTemplate) {
       throw new Error('No clock template found.');
     }
 
-    // Prepare content pools for each content type
-    const contentPools = {};
-
-    // Get unique content types from clock segments
-    const contentTypes = [
-      ...new Set(
-        clockTemplate.ClockSegments.map((segment) => segment.contentType)
-      ),
-    ];
-
-    for (const type of contentTypes) {
-      let contents = [];
-
-      // Fetch carts of the corresponding type
-      const carts = await Cart.findAll({
-        where: { type },
-        include: [
-          {
-            model: Content,
-            through: { attributes: [] },
-            where:
-              type === 'song'
-                ? { formatId: { [Op.in]: preferredFormats } }
-                : {},
-            order: [['score', 'DESC']],
-          },
+    // Fetch content libraries assigned to user's entities
+    const contentLibraryAssignments = await ContentLibraryAssignment.findAll({
+      where: {
+        [Op.or]: [
+          { assignableType: 'Station', assignableId: { [Op.in]: stationIds } },
+          { assignableType: 'Company', assignableId: { [Op.in]: companyIds } },
+          { assignableType: 'Platform', assignableId: { [Op.in]: platformIds } },
         ],
-      });
+      },
+      include: {
+        model: ContentLibrary,
+        as: 'ContentLibrary',
+        include: {
+          model: Content,
+          as: 'Contents',
+        },
+      },
+    });
 
-      // Combine contents from all carts
-      for (const cart of carts) {
-        contents.push(...cart.Contents);
-      }
-
-      if (contents.length === 0) {
-        throw new Error(`No content found for content type: ${type}`);
-      }
-
-      // Implement rotation policy: Sort by lastPlayedAt and playCount
-      contents.sort((a, b) => {
-        const aTime = a.lastPlayedAt ? new Date(a.lastPlayedAt) : new Date(0);
-        const bTime = b.lastPlayedAt ? new Date(b.lastPlayedAt) : new Date(0);
-        if (aTime - bTime !== 0) {
-          return aTime - bTime;
-        } else {
-          return a.playCount - b.playCount;
-        }
-      });
-
-      contentPools[type] = contents;
+    // Collect all contents
+    let allContents = [];
+    for (const assignment of contentLibraryAssignments) {
+      const contents = assignment.ContentLibrary.Contents;
+      allContents = allContents.concat(contents);
     }
 
-    // Generate the playlist based on the clock template
-    let playlistContent = '#EXTM3U\n';
-    let playlistDuration = 0;
-    const maxPlaylistDuration = 86400; // 24 hours in seconds
+    // Remove duplicates
+    allContents = Array.from(new Set(allContents.map((c) => c.id))).map((id) =>
+      allContents.find((c) => c.id === id)
+    );
 
-    while (playlistDuration < maxPlaylistDuration) {
-      for (const segment of clockTemplate.ClockSegments) {
-        const { contentType } = segment;
-        const pool = contentPools[contentType];
-
-        if (!pool || pool.length === 0) {
-          console.warn(`No available content for type: ${contentType}`);
-          continue;
-        }
-
-        let contentItem;
-        const now = new Date();
-
-        // Implement rotation policy
-        const MIN_ROTATION_INTERVAL = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
-
-        for (let i = 0; i < pool.length; i++) {
-          const candidate = pool[i];
-          const lastPlayedAt = candidate.lastPlayedAt
-            ? new Date(candidate.lastPlayedAt)
-            : new Date(0);
-          const timeSinceLastPlayed = now - lastPlayedAt;
-
-          if (timeSinceLastPlayed >= MIN_ROTATION_INTERVAL) {
-            contentItem = candidate;
-            // Move the selected content to the end of the pool
-            pool.splice(i, 1);
-            pool.push(contentItem);
-            break;
-          }
-        }
-
-        if (!contentItem) {
-          // If all content has been played recently, pick the least recently played
-          contentItem = pool.shift();
-          pool.push(contentItem);
-        }
-
-        // Update lastPlayedAt and playCount
-        contentItem.lastPlayedAt = now;
-        contentItem.playCount = (contentItem.playCount || 0) + 1;
-        await contentItem.save();
-
-        playlistContent += formatContentEntry(contentItem);
-        playlistDuration += contentItem.duration;
-
-        if (playlistDuration >= maxPlaylistDuration) {
-          break;
-        }
+    // Organize contents by type
+    const contentsByType = {};
+    allContents.forEach((content) => {
+      if (!contentsByType[content.contentType]) {
+        contentsByType[content.contentType] = [];
       }
+      contentsByType[content.contentType].push(content);
+    });
+
+    // Generate playlist
+    let playlistEntries = [];
+
+    for (const segment of clockTemplate.Segments) {
+      const contentType = segment.contentType;
+      const availableContents = contentsByType[contentType] || [];
+
+      if (availableContents.length === 0) {
+        console.warn(`No available content for type ${contentType}. Skipping.`);
+        continue;
+      }
+
+      // Select content (e.g., random selection for simplicity)
+      const selectedContent =
+        availableContents[Math.floor(Math.random() * availableContents.length)];
+
+      playlistEntries.push({
+        file_path: selectedContent.file_path,
+        title: selectedContent.title,
+      });
     }
 
-    // Save the playlist to a file
-    const playlistPath = path.join(__dirname, 'playlist.m3u');
+    // Ensure the 'playlists' directory exists
+    const playlistDir = path.join(__dirname, 'playlists');
+    if (!fs.existsSync(playlistDir)) {
+      fs.mkdirSync(playlistDir);
+    }
+
+    // Write playlist to file
+    const playlistPath = path.join(playlistDir, `playlist_user_${userId}.m3u`);
+    const playlistContent = playlistEntries
+      .map((entry) => `#EXTINF:-1,${entry.title}\n${entry.file_path}`)
+      .join('\n');
+
     fs.writeFileSync(playlistPath, playlistContent);
-    console.log('Playlist generated successfully!');
 
-    // Since you're skipping the remote upload, this part is commented out
-    /*
-    if (remoteUser && remoteHost && remotePath) {
-      await uploadPlaylist(playlistPath);
-    } else {
-      console.log('Remote server not configured. Skipping upload.');
-    }
-    */
+    console.log(`Playlist generated for user ${userId} at ${playlistPath}`);
 
     return playlistPath;
   } catch (error) {
@@ -198,5 +146,4 @@ const generatePlaylist = async (preferredFormats) => {
   }
 };
 
-// Export the generatePlaylist function
 module.exports = generatePlaylist;

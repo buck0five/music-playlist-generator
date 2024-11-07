@@ -3,44 +3,99 @@
 const Sequelize = require('sequelize');
 const sequelize = require('../config/database');
 
-const Format = require('./Format');
+const User = require('./User');
+const Platform = require('./Platform');
+const Company = require('./Company');
+const Station = require('./Station');
 const Content = require('./Content');
-const Feedback = require('./Feedback');
+const ContentLibrary = require('./ContentLibrary');
+const ContentLibraryAssignment = require('./ContentLibraryAssignment');
 const ClockTemplate = require('./ClockTemplate');
 const ClockSegment = require('./ClockSegment');
-const Cart = require('./Cart');
-const ContentCart = require('./ContentCart'); // Import the join table model
 
-// Define associations
+// Associations
 
-// Content and Format association
-Content.belongsTo(Format, { foreignKey: 'formatId' });
-Format.hasMany(Content, { foreignKey: 'formatId' });
+// Platform and Company
+Platform.hasMany(Company, { foreignKey: 'platformId', as: 'Companies' });
+Company.belongsTo(Platform, { foreignKey: 'platformId', as: 'Platform' });
 
-// Feedback and Content association
-Feedback.belongsTo(Content, { foreignKey: 'contentId' });
-Content.hasMany(Feedback, { foreignKey: 'contentId' });
+// Company and Station
+Company.hasMany(Station, { foreignKey: 'companyId', as: 'CompanyStations' });
+Station.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });
 
-// ClockTemplate and Format association
-ClockTemplate.belongsTo(Format, { foreignKey: 'formatId' });
-Format.hasMany(ClockTemplate, { foreignKey: 'formatId' });
+// User and Station
+User.belongsToMany(Station, {
+  through: 'UserStations',
+  as: 'AssignedStations',
+  foreignKey: 'userId',
+});
+Station.belongsToMany(User, {
+  through: 'UserStations',
+  as: 'Users',
+  foreignKey: 'stationId',
+});
 
-// ClockSegment and ClockTemplate association
-ClockSegment.belongsTo(ClockTemplate, { foreignKey: 'clockTemplateId', as: 'ClockTemplate' });
-ClockTemplate.hasMany(ClockSegment, { foreignKey: 'clockTemplateId', as: 'ClockSegments' });
+// Content and ContentLibrary association
+Content.belongsToMany(ContentLibrary, {
+  through: 'ContentLibraryContent',
+  as: 'AssociatedContentLibraries', // Changed alias to 'AssociatedContentLibraries'
+  foreignKey: 'contentId',
+});
 
-// Content and Cart association (Many-to-Many)
-Content.belongsToMany(Cart, { through: ContentCart, foreignKey: 'contentId', otherKey: 'cartId' });
-Cart.belongsToMany(Content, { through: ContentCart, foreignKey: 'cartId', otherKey: 'contentId' });
+ContentLibrary.belongsToMany(Content, {
+  through: 'ContentLibraryContent',
+  as: 'Contents',
+  foreignKey: 'contentLibraryId',
+});
 
+// ContentLibraryAssignment associations
+ContentLibrary.hasMany(ContentLibraryAssignment, {
+  foreignKey: 'contentLibraryId',
+  as: 'Assignments',
+});
+ContentLibraryAssignment.belongsTo(ContentLibrary, {
+  foreignKey: 'contentLibraryId',
+  as: 'ContentLibrary',
+});
+
+// Polymorphic Associations for ContentLibraryAssignment
+ContentLibraryAssignment.belongsTo(Platform, {
+  foreignKey: 'assignableId',
+  constraints: false,
+  as: 'Platform',
+});
+ContentLibraryAssignment.belongsTo(Company, {
+  foreignKey: 'assignableId',
+  constraints: false,
+  as: 'Company',
+});
+ContentLibraryAssignment.belongsTo(Station, {
+  foreignKey: 'assignableId',
+  constraints: false,
+  as: 'Station',
+});
+
+// ClockTemplate and ClockSegment
+ClockTemplate.hasMany(ClockSegment, {
+  foreignKey: 'clockTemplateId',
+  as: 'Segments',
+});
+ClockSegment.belongsTo(ClockTemplate, {
+  foreignKey: 'clockTemplateId',
+  as: 'ClockTemplate',
+});
+
+// Export all models
 module.exports = {
   sequelize,
   Sequelize,
-  Format,
+  User,
+  Platform,
+  Company,
+  Station,
   Content,
-  Feedback,
+  ContentLibrary,
+  ContentLibraryAssignment,
   ClockTemplate,
   ClockSegment,
-  Cart,
-  ContentCart, // Export if needed elsewhere
 };

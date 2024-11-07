@@ -1,34 +1,33 @@
 // server.js
 
+require('dotenv').config(); // Load environment variables
 const express = require('express');
 const app = express();
 const PORT = process.env.PORT || 3000;
+
 const apiRouter = require('./routes/api');
+const authRouter = require('./routes/auth');
+const adminRouter = require('./routes/admin');
 const { sequelize } = require('./models');
 
-// Middleware and other setup...
+// Middleware
 app.use(express.json());
-app.use('/api', apiRouter);
 
-// Synchronize models and start the server
+// Routes
+app.use('/auth', authRouter);
+app.use('/api', apiRouter);
+app.use('/admin', adminRouter);
+
+// Start the server
 (async () => {
   try {
-    // Disable foreign key checks
-    await sequelize.query('PRAGMA foreign_keys = OFF');
-
-    // Synchronize models
-    await sequelize.sync({ alter: true }); // or { force: true } if needed
-
-    // Enable foreign key checks
-    await sequelize.query('PRAGMA foreign_keys = ON');
-
+    await sequelize.sync();
     console.log('Database synchronized.');
 
-    // Start the server
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
   } catch (err) {
-    console.error('Error synchronizing database:', err);
+    console.error('Error starting server:', err);
   }
 })();

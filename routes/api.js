@@ -2,75 +2,95 @@
 
 const express = require('express');
 const router = express.Router();
-const generatePlaylist = require('../generatePlaylist');
-const { Content, Feedback, Format } = require('../models'); // Added Format here
+const authenticate = require('../middleware/authenticate');
+const authorize = require('../middleware/authorize');
+const { User, Content, ContentLibrary, Station } = require('../models');
 
-// Route handler for generating the playlist based on preferred formats
-router.post('/preferences', async (req, res) => {
+// Import other necessary modules or controllers here
+
+// Public Routes (No authentication required)
+
+// Example: Get public content
+router.get('/public-content', async (req, res) => {
   try {
-    let { preferredFormats } = req.body;
-
-    if (!preferredFormats || !Array.isArray(preferredFormats)) {
-      return res.status(400).json({ error: 'preferredFormats must be an array of format IDs.' });
-    }
-
-    // Convert format IDs to integers
-    preferredFormats = preferredFormats.map(id => parseInt(id, 10));
-
-    // Generate the playlist
-    const playlistPath = await generatePlaylist(preferredFormats);
-
-    res.json({ message: 'Playlist generated successfully!', playlistPath });
-  } catch (err) {
-    console.error('Error generating playlist:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Route handler for submitting feedback
-router.post('/feedback', async (req, res) => {
-  try {
-    const { contentId, feedbackType } = req.body;
-
-    if (!contentId || !feedbackType) {
-      return res.status(400).json({ error: 'contentId and feedbackType are required.' });
-    }
-
-    // Create a new feedback entry
-    await Feedback.create({
-      contentId,
-      feedbackType,
-      timestamp: new Date(),
-    });
-
-    res.json({ message: 'Feedback submitted successfully!' });
-  } catch (err) {
-    console.error('Error submitting feedback:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Route handler for retrieving all content
-router.get('/contents', async (req, res) => {
-  try {
-    const contents = await Content.findAll();
+    const contents = await Content.findAll({ where: { isPublic: true } });
     res.json(contents);
   } catch (err) {
-    console.error('Error fetching contents:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Error fetching public content:', err);
+    res.status(500).json({ error: 'An error occurred while fetching public content.' });
   }
 });
 
-// Route handler for retrieving formats
-router.get('/formats', async (req, res) => {
+// Protected Routes (Authentication required)
+
+// Example: Get user profile
+router.get('/user/profile', authenticate, async (req, res) => {
   try {
-    const formats = await Format.findAll();
-    res.json(formats);
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'username', 'email', 'role'],
+    });
+    res.json(user);
   } catch (err) {
-    console.error('Error fetching formats:', err);
-    res.status(500).json({ error: err.message });
+    console.error('Error fetching user profile:', err);
+    res.status(500).json({ error: 'An error occurred while fetching user profile.' });
   }
 });
 
-// Export the router to be used in server.js
+// Example: Update user profile
+router.put('/user/profile', authenticate, async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    const user = await User.findByPk(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    // Update user fields
+    if (username) user.username = username;
+    if (email) user.email = email;
+    if (password) user.password = password; // Password hashing handled in model hook
+
+    await user.save();
+    res.json({ message: 'Profile updated successfully.' });
+  } catch (err) {
+    console.error('Error updating user profile:', err);
+    res.status(500).json({ error: 'An error occurred while updating user profile.' });
+  }
+});
+
+// Example: Generate playlist for authenticated user
+router.get('/playlists/generate', authenticate, async (req, res) => {
+  try {
+    const generatePlaylist = require('../generatePlaylist');
+    const playlistPath = await generatePlaylist(req.user.id);
+    res.json({ message: 'Playlist generated successfully.', path: playlistPath });
+  } catch (err) {
+    console.error('Error generating playlist:', err);
+    res.status(500).json({ error: 'An error occurred while generating the playlist.' });
+  }
+});
+
+// Example: Get user's stations
+router.get('/user/stations', authenticate, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id, {
+      include: [
+        {
+          model: Station,
+          as: 'AssignedStations',
+          attributes: ['id', 'name'],
+        },
+      ],
+    });
+
+    res.json(user.AssignedStations);
+  } catch (err) {
+    console.error('Error fetching user stations:', err);
+    res.status(500).json({ error: 'An error occurred while fetching user stations.' });
+  }
+});
+
+// Additional routes can be added below...
+
 module.exports = router;
