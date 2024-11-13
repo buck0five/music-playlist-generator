@@ -3,26 +3,34 @@
 const express = require('express');
 const router = express.Router();
 const authenticate = require('../middleware/authenticate');
-const authorize = require('../middleware/authorize');
-const { User, Platform, Company, Station, ContentLibrary, Content } = require('../models');
+const { User, ContentLibrary, Content } = require('../models');
 
-// Apply authentication and authorization middleware to all routes in this router
-router.use(authenticate);
-router.use(authorize('admin'));
+// Middleware to check admin role
+const isAdmin = (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: Access is denied.' });
+  }
+  next();
+};
 
 // Admin Dashboard
-router.get('/dashboard', (req, res) => {
-  res.json({ message: 'Welcome to the admin dashboard.', user: req.user });
+router.get('/dashboard', authenticate, isAdmin, (req, res) => {
+  res.json({
+    message: 'Welcome to the admin dashboard.',
+    user: {
+      id: req.user.id,
+      role: req.user.role,
+    },
+  });
 });
 
-// Manage Users
-
-// Get all users
-router.get('/users', async (req, res) => {
+// Get All Users
+router.get('/users', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.findAll({
       attributes: ['id', 'username', 'email', 'role'],
     });
+
     res.json(users);
   } catch (err) {
     console.error('Error fetching users:', err);
@@ -30,22 +38,25 @@ router.get('/users', async (req, res) => {
   }
 });
 
-// Update a user
-router.put('/users/:id', async (req, res) => {
+// Update User
+router.put('/users/:id', authenticate, isAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { username, email, password, role } = req.body;
+
   try {
-    const { username, email, role } = req.body;
-    const user = await User.findByPk(req.params.id);
+    const user = await User.findByPk(id);
 
     if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
 
-    // Update user fields
     if (username) user.username = username;
     if (email) user.email = email;
+    if (password) user.password = password;
     if (role) user.role = role;
 
     await user.save();
+
     res.json({ message: 'User updated successfully.' });
   } catch (err) {
     console.error('Error updating user:', err);
@@ -53,13 +64,19 @@ router.put('/users/:id', async (req, res) => {
   }
 });
 
-// Delete a user
-router.delete('/users/:id', async (req, res) => {
+// Delete User
+router.delete('/users/:id', authenticate, isAdmin, async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const deleted = await User.destroy({ where: { id: req.params.id } });
-    if (!deleted) {
+    const user = await User.findByPk(id);
+
+    if (!user) {
       return res.status(404).json({ error: 'User not found.' });
     }
+
+    await user.destroy();
+
     res.json({ message: 'User deleted successfully.' });
   } catch (err) {
     console.error('Error deleting user:', err);
@@ -67,12 +84,28 @@ router.delete('/users/:id', async (req, res) => {
   }
 });
 
-// Manage Content Libraries
+// Create Content Library
+router.post('/content-libraries', authenticate, isAdmin, async (req, res) => {
+  const { name } = req.body;
 
-// Get all content libraries
-router.get('/content-libraries', async (req, res) => {
+  try {
+    const contentLibrary = await ContentLibrary.create({ name });
+
+    res.status(201).json({
+      message: 'Content library created successfully.',
+      contentLibrary,
+    });
+  } catch (err) {
+    console.error('Error creating content library:', err);
+    res.status(500).json({ error: 'An error occurred while creating the content library.' });
+  }
+});
+
+// Get All Content Libraries
+router.get('/content-libraries', authenticate, isAdmin, async (req, res) => {
   try {
     const contentLibraries = await ContentLibrary.findAll();
+
     res.json(contentLibraries);
   } catch (err) {
     console.error('Error fetching content libraries:', err);
@@ -80,62 +113,53 @@ router.get('/content-libraries', async (req, res) => {
   }
 });
 
-// Create a new content library
-router.post('/content-libraries', async (req, res) => {
-  try {
-    const { name } = req.body;
-    const contentLibrary = await ContentLibrary.create({ name });
-    res.status(201).json({ message: 'Content library created successfully.', contentLibrary });
-  } catch (err) {
-    console.error('Error creating content library:', err);
-    res.status(500).json({ error: 'An error occurred while creating the content library.' });
-  }
-});
+// Create Content
+router.post('/contents', authenticate, isAdmin, async (req, res) => {
+  const { title, contentType, file_path, duration, tags } = req.body;
 
-// Manage Content
-
-// Get all content
-router.get('/contents', async (req, res) => {
   try {
-    const contents = await Content.findAll();
-    res.json(contents);
-  } catch (err) {
-    console.error('Error fetching content:', err);
-    res.status(500).json({ error: 'An error occurred while fetching content.' });
-  }
-});
+    const content = await Content.create({
+      title,
+      contentType,
+      file_path,
+      duration,
+      tags,
+    });
 
-// Create new content
-router.post('/contents', async (req, res) => {
-  try {
-    const { title, contentType, file_path, duration, tags } = req.body;
-    const content = await Content.create({ title, contentType, file_path, duration, tags });
-    res.status(201).json({ message: 'Content created successfully.', content });
+    res.status(201).json({
+      message: 'Content created successfully.',
+      content,
+    });
   } catch (err) {
     console.error('Error creating content:', err);
-    res.status(500).json({ error: 'An error occurred while creating the content.' });
+    res.status(500).json({ error: 'An error occurred while creating content.' });
   }
 });
 
-// Assign content to a content library
-router.post('/content-libraries/:libraryId/contents/:contentId', async (req, res) => {
-  try {
+// Assign Content to Content Library
+router.post(
+  '/content-libraries/:libraryId/contents/:contentId',
+  authenticate,
+  isAdmin,
+  async (req, res) => {
     const { libraryId, contentId } = req.params;
-    const contentLibrary = await ContentLibrary.findByPk(libraryId);
-    const content = await Content.findByPk(contentId);
 
-    if (!contentLibrary || !content) {
-      return res.status(404).json({ error: 'Content library or content not found.' });
+    try {
+      const contentLibrary = await ContentLibrary.findByPk(libraryId);
+      const content = await Content.findByPk(contentId);
+
+      if (!contentLibrary || !content) {
+        return res.status(404).json({ error: 'Content or Content Library not found.' });
+      }
+
+      await contentLibrary.addContent(content);
+
+      res.json({ message: 'Content added to content library successfully.' });
+    } catch (err) {
+      console.error('Error assigning content to library:', err);
+      res.status(500).json({ error: 'An error occurred while assigning content.' });
     }
-
-    await contentLibrary.addContent(content);
-    res.json({ message: 'Content added to content library successfully.' });
-  } catch (err) {
-    console.error('Error assigning content to content library:', err);
-    res.status(500).json({ error: 'An error occurred while assigning content.' });
   }
-});
-
-// Additional admin routes can be added below...
+);
 
 module.exports = router;

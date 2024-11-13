@@ -1,20 +1,20 @@
-node_modules
-# Environment Variables
-.env
+# .gitignore
 
-# Node modules directory
+# Node.js modules
 node_modules/
-npm-debug.log
 
-# Environment variables file
+# Environment variables
 .env
-
-# SQLite database file
-database.sqlite
 
 # Logs
+logs/
 *.log
 
-# System files
+# Database files
+database.sqlite
+
+# Mac OS files
 .DS_Store
-Thumbs.db
+
+# Playlists directory
+playlists/

@@ -22,7 +22,7 @@ const generatePlaylist = async (userId) => {
       include: [
         {
           model: Station,
-          as: 'AssignedStations', // Updated alias
+          as: 'AssignedStations',
           include: [
             {
               model: Company,

@@ -1,14 +1,18 @@
 // server.js
 
-require('dotenv').config(); // Load environment variables
+require('dotenv').config();
 const express = require('express');
+const cors = require('cors'); //Import cors
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 const apiRouter = require('./routes/api');
 const authRouter = require('./routes/auth');
 const adminRouter = require('./routes/admin');
-const { sequelize } = require('./models');
+const sequelize = require('./config/database');
+
+// Enable CORS for all routes
+app.use(cors());
 
 // Middleware
 app.use(express.json());
@@ -24,7 +28,7 @@ app.use('/admin', adminRouter);
     await sequelize.sync();
     console.log('Database synchronized.');
 
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`Server is running on port ${PORT}`);
     });
   } catch (err) {

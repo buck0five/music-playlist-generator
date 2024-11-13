@@ -4,48 +4,43 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const bcrypt = require('bcrypt');
 
-const User = sequelize.define('User', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
-  username: {
-    type: DataTypes.STRING,
-    unique: true,
-    allowNull: false,
-  },
-  email: {
-    type: DataTypes.STRING,
-    unique: true,
-    allowNull: false,
-    validate: {
-      isEmail: true, // Validates the format of the email
+const User = sequelize.define(
+  'User',
+  {
+    username: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+    email: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+      validate: {
+        isEmail: true,
+      },
+    },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    role: {
+      type: DataTypes.ENUM('admin', 'end_user'),
+      defaultValue: 'end_user',
     },
   },
-  password: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  role: {
-    type: DataTypes.ENUM('admin', 'end_user'),
-    allowNull: false,
-    defaultValue: 'end_user',
-  },
-});
-
-// Password hashing before create
-User.beforeCreate(async (user) => {
-  const saltRounds = 10;
-  user.password = await bcrypt.hash(user.password, saltRounds);
-});
-
-// Password hashing before update (if password is changed)
-User.beforeUpdate(async (user) => {
-  if (user.changed('password')) {
-    const saltRounds = 10;
-    user.password = await bcrypt.hash(user.password, saltRounds);
+  {
+    hooks: {
+      beforeCreate: async (user) => {
+        user.password = await bcrypt.hash(user.password, 10);
+      },
+      beforeUpdate: async (user) => {
+        if (user.changed('password')) {
+          user.password = await bcrypt.hash(user.password, 10);
+        }
+      },
+    },
   }
-});
+);
 
 module.exports = User;
