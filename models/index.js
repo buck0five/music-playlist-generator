@@ -6,83 +6,64 @@ const User = require('./User');
 const Platform = require('./Platform');
 const Company = require('./Company');
 const Station = require('./Station');
-const Content = require('./Content');
 const ContentLibrary = require('./ContentLibrary');
+const Content = require('./Content');
 const ContentLibraryAssignment = require('./ContentLibraryAssignment');
-const ClockTemplate = require('./ClockTemplate');
-const ClockSegment = require('./ClockSegment');
+const UserStation = require('./UserStation');
 
 // Define associations
 
-// User and Station (Many-to-Many)
+// User ↔ Station
 User.belongsToMany(Station, {
-  through: 'UserStations',
-  as: 'AssignedStations',
+  through: UserStation,
+  as: 'Stations',
   foreignKey: 'userId',
 });
 Station.belongsToMany(User, {
-  through: 'UserStations',
+  through: UserStation,
   as: 'Users',
   foreignKey: 'stationId',
 });
 
-// Station and Company (Many-to-One)
-Station.belongsTo(Company, {
-  as: 'Company',
-  foreignKey: 'companyId',
-});
-Company.hasMany(Station, {
-  as: 'Stations',
-  foreignKey: 'companyId',
-});
-
-// Company and Platform (Many-to-One)
-Company.belongsTo(Platform, {
-  as: 'Platform',
-  foreignKey: 'platformId',
-});
-Platform.hasMany(Company, {
-  as: 'Companies',
-  foreignKey: 'platformId',
-});
-
-// ContentLibrary and Content (Many-to-Many)
+// Content ↔ ContentLibrary
 Content.belongsToMany(ContentLibrary, {
-  through: 'ContentLibraryContents',
+  through: 'ContentLibraryContent',
   as: 'ContentLibraries',
   foreignKey: 'contentId',
 });
 ContentLibrary.belongsToMany(Content, {
-  through: 'ContentLibraryContents',
+  through: 'ContentLibraryContent',
   as: 'Contents',
   foreignKey: 'contentLibraryId',
 });
 
 // ContentLibraryAssignment
-ContentLibraryAssignment.belongsTo(ContentLibrary, {
-  as: 'ContentLibrary',
+ContentLibrary.hasMany(ContentLibraryAssignment, {
   foreignKey: 'contentLibraryId',
+  as: 'Assignments',
+});
+ContentLibraryAssignment.belongsTo(ContentLibrary, {
+  foreignKey: 'contentLibraryId',
+  as: 'ContentLibrary',
 });
 
-// ClockTemplate and ClockSegment (One-to-Many)
-ClockTemplate.hasMany(ClockSegment, {
-  as: 'Segments',
-  foreignKey: 'clockTemplateId',
-});
-ClockSegment.belongsTo(ClockTemplate, {
-  as: 'ClockTemplate',
-  foreignKey: 'clockTemplateId',
-});
+// Company ↔ Platform
+Company.belongsTo(Platform, { foreignKey: 'platformId', as: 'Platform' });
+Platform.hasMany(Company, { foreignKey: 'platformId', as: 'Companies' });
 
+// Station ↔ Company
+Station.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });
+Company.hasMany(Station, { foreignKey: 'companyId', as: 'Stations' });
+
+// Export models
 module.exports = {
   sequelize,
   User,
   Platform,
   Company,
   Station,
-  Content,
   ContentLibrary,
+  Content,
   ContentLibraryAssignment,
-  ClockTemplate,
-  ClockSegment,
+  UserStation,
 };

@@ -1,17 +1,27 @@
 // src/components/AdminDashboard.js
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import ManageUsers from './ManageUsers';
+import ManageContent from './ManageContent';
+import ManageStations from './ManageStations';
+import ManageCompanies from './ManageCompanies';
+import ContentLibraries from './ContentLibraries';
 
-function AdminDashboard() {
+function AdminDashboard({ onLogout }) {
   return (
     <div>
       <h2>Admin Dashboard</h2>
-      <ul>
-        <li><Link to="/admin/users">Manage Users</Link></li>
-        <li><Link to="/admin/content-libraries">Manage Content Libraries</Link></li>
-        {/* Add more admin functionalities here */}
-      </ul>
+      <button onClick={onLogout}>Logout</button>
+      <hr />
+      <ManageUsers />
+      <hr />
+      <ManageContent />
+      <hr />
+      <ManageStations />
+      <hr />
+      <ManageCompanies />
+      <hr />
+      <ContentLibraries />
     </div>
   );
 }

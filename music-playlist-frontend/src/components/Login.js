@@ -3,36 +3,28 @@
 import React, { useState } from 'react';
 import api from '../services/api';
 
-function Login({ setAuthToken, setUserRole }) {
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-  });
-
-  const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-  };
+function Login({ onLogin }) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     try {
-      const response = await api.post('/auth/login', formData);
-      const { token } = response.data;
+      const response = await api.post('/auth/login', { email, password });
+      const { token, user } = response.data;
 
-      // Store token in localStorage
+      // Store the token
       localStorage.setItem('token', token);
-      setAuthToken(token);
 
-      // Decode token to get user role
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      setUserRole(payload.role);
+      // Store the user info, including role
+      localStorage.setItem('user', JSON.stringify(user));
 
-      alert('Login successful!');
-      // Redirect to dashboard
-      window.location.href = payload.role === 'admin' ? '/admin' : '/dashboard';
+      // Notify the parent component
+      onLogin(user);
     } catch (error) {
-      console.error('Login error:', error.response?.data || error.message);
-      alert('Login failed. Please check your credentials.');
+      console.error('Error during login:', error.response?.data || error.message);
+      alert('Invalid email or password.');
     }
   };
 
@@ -40,14 +32,18 @@ function Login({ setAuthToken, setUserRole }) {
     <div>
       <h2>Login</h2>
       <form onSubmit={handleSubmit}>
-        <div>
-          <label>Email:</label>
-          <input name="email" type="email" value={formData.email} onChange={handleChange} required />
-        </div>
-        <div>
-          <label>Password:</label>
-          <input name="password" type="password" value={formData.password} onChange={handleChange} required />
-        </div>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        /><br />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        /><br />
         <button type="submit">Login</button>
       </form>
     </div>

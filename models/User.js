@@ -25,14 +25,16 @@ const User = sequelize.define(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM('admin', 'end_user'),
+      type: DataTypes.STRING,
       defaultValue: 'end_user',
     },
   },
   {
     hooks: {
       beforeCreate: async (user) => {
-        user.password = await bcrypt.hash(user.password, 10);
+        if (user.password) {
+          user.password = await bcrypt.hash(user.password, 10);
+        }
       },
       beforeUpdate: async (user) => {
         if (user.changed('password')) {

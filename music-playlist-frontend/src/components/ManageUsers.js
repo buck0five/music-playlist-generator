@@ -5,9 +5,11 @@ import api from '../services/api';
 
 function ManageUsers() {
   const [users, setUsers] = useState([]);
+  const [stations, setStations] = useState([]);
 
   useEffect(() => {
     fetchUsers();
+    fetchStations();
   }, []);
 
   const fetchUsers = async () => {
@@ -17,6 +19,16 @@ function ManageUsers() {
     } catch (error) {
       console.error('Error fetching users:', error.response?.data || error.message);
       alert('Failed to fetch users.');
+    }
+  };
+
+  const fetchStations = async () => {
+    try {
+      const response = await api.get('/admin/stations');
+      setStations(response.data);
+    } catch (error) {
+      console.error('Error fetching stations:', error.response?.data || error.message);
+      alert('Failed to fetch stations.');
     }
   };
 
@@ -33,37 +45,68 @@ function ManageUsers() {
     }
   };
 
-  // Add more functions to update user roles, etc.
+  const updateUserRole = async (userId, newRole) => {
+    try {
+      await api.put(`/admin/users/${userId}`, { role: newRole });
+      fetchUsers();
+      alert('User role updated successfully!');
+    } catch (error) {
+      console.error('Error updating user role:', error.response?.data || error.message);
+      alert('Failed to update user role.');
+    }
+  };
+
+  const updateUserStations = async (userId, e) => {
+    const options = e.target.options;
+    const selectedStationIds = [];
+    for (const option of options) {
+      if (option.selected) {
+        selectedStationIds.push(option.value);
+      }
+    }
+
+    try {
+      await api.put(`/admin/users/${userId}/stations`, { stationIds: selectedStationIds });
+      fetchUsers();
+      alert('User stations updated successfully!');
+    } catch (error) {
+      console.error('Error updating user stations:', error.response?.data || error.message);
+      alert('Failed to update user stations.');
+    }
+  };
 
   return (
     <div>
       <h2>Manage Users</h2>
-      <table border="1" cellPadding="5">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Role</th>
-            {/* Add more columns if needed */}
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.map((user) => (
-            <tr key={user.id}>
-              <td>{user.id}</td>
-              <td>{user.username}</td>
-              <td>{user.email}</td>
-              <td>{user.role}</td>
-              <td>
-                {/* Add buttons or links for editing user */}
-                <button onClick={() => deleteUser(user.id)}>Delete</button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <ul>
+        {users.map((user) => (
+          <li key={user.id}>
+            {user.username} ({user.email}) - Role:
+            <select
+              value={user.role}
+              onChange={(e) => updateUserRole(user.id, e.target.value)}
+            >
+              <option value="admin">Admin</option>
+              <option value="end_user">End User</option>
+            </select>
+            <br />
+            Assign Stations:
+            <select
+              multiple
+              value={user.Stations ? user.Stations.map((s) => s.id.toString()) : []}
+              onChange={(e) => updateUserStations(user.id, e)}
+            >
+              {stations.map((station) => (
+                <option key={station.id} value={station.id}>
+                  {station.name}
+                </option>
+              ))}
+            </select>
+            <br />
+            <button onClick={() => deleteUser(user.id)}>Delete</button>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

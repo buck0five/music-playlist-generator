@@ -1,17 +1,15 @@
-// models/Station.js
-
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Station = sequelize.define('Station', {
-  name: {
-    type: DataTypes.STRING,
+const UserStation = sequelize.define('UserStation', {
+  userId: {
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
-  companyId: {
+  stationId: {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
 });
 
-module.exports = Station;
+module.exports = UserStation;

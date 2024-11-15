@@ -1,139 +1,109 @@
 // seed.js
 
+const sequelize = require('./config/database');
 const {
-  sequelize,
   User,
   Platform,
   Company,
   Station,
-  Content,
   ContentLibrary,
+  Content,
+  UserStation,
   ContentLibraryAssignment,
-  ClockTemplate,
-  ClockSegment,
 } = require('./models');
 
 (async () => {
   try {
+    // Drop all tables
+    await sequelize.getQueryInterface().dropAllTables();
+    console.log('All tables dropped.');
+
+    // Sync the database
     await sequelize.sync({ force: true });
+    console.log('Database synchronized.');
 
-    // Seed Platforms
-    const [mdRadio, toolTimeRadio] = await Promise.all([
-      Platform.create({ name: 'MD Radio' }),
-      Platform.create({ name: 'Tool Time Radio' }),
-    ]);
-
-    // Seed Companies
-    const [bobsHardware, jimsHardware] = await Promise.all([
-      Company.create({ name: "Bob's Hardware", platformId: toolTimeRadio.id }),
-      Company.create({ name: "Jim's Hardware", platformId: toolTimeRadio.id }),
-    ]);
-
-    // Seed Stations
-    const bobsStation = await Station.create({
-      name: 'Bob Hardware Station 1',
-      companyId: bobsHardware.id,
-    });
-
-    const jimsStations = await Promise.all([
-      Station.create({ name: 'Jim Hardware Station 1', companyId: jimsHardware.id }),
-      Station.create({ name: 'Jim Hardware Station 2', companyId: jimsHardware.id }),
-      // Add more stations if needed
-    ]);
-
-    // Seed Users
+    // Create an admin user with plain password
     const adminUser = await User.create({
       username: 'admin',
       email: 'admin@example.com',
-      password: 'adminpassword',
+      password: 'adminpassword', // Plain password
       role: 'admin',
     });
 
-    const bobUser = await User.create({
-      username: 'bobmanager',
-      email: 'bobmanager@example.com',
-      password: 'bobpassword',
+    // Create a regular user with plain password
+    const regularUser = await User.create({
+      username: 'user',
+      email: 'user@example.com',
+      password: 'userpassword', // Plain password
       role: 'end_user',
     });
 
-    // Associate Bob's user with Bob's station
-    await bobUser.addAssignedStations(bobsStation); // Updated method name
+    // Create Platforms
+    const platform = await Platform.create({ name: 'Default Platform' });
 
-    // Seed Content Libraries
-    const toolAdsLibrary = await ContentLibrary.create({ name: 'Tool Ads Library' });
-    const toolMusicLibrary = await ContentLibrary.create({ name: 'Tool Music Library' });
-
-    // Seed Contents
-    const contents = await Content.bulkCreate([
-      // Ads
-      {
-        title: 'Tool Sale Ad',
-        contentType: 'ad',
-        file_path: '/ads/tool-sale.mp3',
-        duration: 30,
-        tags: 'tools,sale',
-      },
-      // Music
-      {
-        title: 'Hardware Rock Song',
-        contentType: 'song',
-        file_path: '/music/hardware-rock.mp3',
-        duration: 240,
-        tags: 'rock,hardware',
-      },
-      // Add more content as needed
-    ]);
-
-    // Associate Content with Content Libraries
-    const ads = contents.filter((c) => c.contentType === 'ad');
-    const songs = contents.filter((c) => c.contentType === 'song');
-
-    // Update association methods based on the new alias
-    await Promise.all([
-      toolAdsLibrary.addContents(ads),
-      toolMusicLibrary.addContents(songs),
-    ]);
-
-    // Assign Content Libraries to Platforms
-    await ContentLibraryAssignment.bulkCreate([
-      {
-        contentLibraryId: toolAdsLibrary.id,
-        assignableType: 'Platform',
-        assignableId: toolTimeRadio.id,
-      },
-      {
-        contentLibraryId: toolMusicLibrary.id,
-        assignableType: 'Platform',
-        assignableId: toolTimeRadio.id,
-      },
-    ]);
-
-    // Seed Clock Templates
-    const defaultClockTemplate = await ClockTemplate.create({
-      name: 'Default Clock',
-      description: 'Standard clock template for all platforms',
-      formatId: null,
+    // Create Companies
+    const company = await Company.create({
+      name: 'Default Company',
+      platformId: platform.id,
     });
 
-    // Seed Clock Segments
-    await ClockSegment.bulkCreate([
-      {
-        clockTemplateId: defaultClockTemplate.id,
-        order: 1,
-        contentType: 'song',
-        duration: 240,
-      },
-      {
-        clockTemplateId: defaultClockTemplate.id,
-        order: 2,
-        contentType: 'ad',
-        duration: 60,
-      },
-      // Add more segments as needed
-    ]);
+    // Create Stations
+    const station1 = await Station.create({
+      name: 'Station 1',
+      companyId: company.id,
+    });
+    const station2 = await Station.create({
+      name: 'Station 2',
+      companyId: company.id,
+    });
 
-    console.log('Database seeded successfully!');
-    process.exit();
+    // Assign stations to the regular user
+    await regularUser.addStations([station1, station2]);
+
+    // Create Content Libraries
+    const contentLibrary1 = await ContentLibrary.create({
+      name: 'Content Library 1',
+    });
+    const contentLibrary2 = await ContentLibrary.create({
+      name: 'Content Library 2',
+    });
+
+    // Create Contents
+    const content1 = await Content.create({
+      title: 'Song 1',
+      contentType: 'song',
+      file_path: 'uploads/song1.mp3',
+      duration: '3:30',
+      tags: 'pop, upbeat',
+    });
+
+    const content2 = await Content.create({
+      title: 'Ad 1',
+      contentType: 'ad',
+      file_path: 'uploads/ad1.mp3',
+      duration: '0:30',
+      tags: 'promotion, sale',
+    });
+
+    // Associate contents with content libraries
+    await content1.addContentLibraries([contentLibrary1]);
+    await content2.addContentLibraries([contentLibrary2]);
+
+    // Assign content libraries to entities
+    await ContentLibraryAssignment.create({
+      contentLibraryId: contentLibrary1.id,
+      assignableType: 'Station',
+      assignableId: station1.id,
+    });
+
+    await ContentLibraryAssignment.create({
+      contentLibraryId: contentLibrary2.id,
+      assignableType: 'Company',
+      assignableId: company.id,
+    });
+
+    console.log('Seeding completed successfully.');
+    process.exit(0);
   } catch (error) {
     console.error('Error seeding database:', error);
     process.exit(1);
