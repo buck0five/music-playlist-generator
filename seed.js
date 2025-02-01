@@ -3,144 +3,122 @@ const {
   sequelize,
   Format,
   Content,
-  Feedback,
   ContentType,
   Station,
   StationProfile,
   ClockTemplate,
   ClockTemplateSlot,
   Cart,
-  CartItem
+  CartItem,
+  StationSchedule,
 } = require('./models');
 
 async function seed() {
   try {
-    await sequelize.sync({ force: true }); // Destroys old tables, recreates new
+    // 1. Force sync to recreate tables
+    await sequelize.sync({ force: true });
 
-    // 1) Create some Formats
+    // 2. Create some Formats
     const rockFormat = await Format.create({ name: 'Rock' });
     const jazzFormat = await Format.create({ name: 'Jazz' });
 
-    // 2) Create ContentTypes
+    // 3. ContentTypes
     const songType = await ContentType.create({ name: 'Song' });
     const adType = await ContentType.create({ name: 'Ad' });
 
-    // 3) Create multiple songs (12 songs, each 180 seconds)
-    // We'll alternate between 'Rock' and 'Jazz' format for demonstration
-    const songsToCreate = [];
-    for (let i = 1; i <= 12; i++) {
-      songsToCreate.push({
-        title: `Song #${i}`,
-        contentType: 'song',
-        formatId: i % 2 === 0 ? jazzFormat.id : rockFormat.id,
-        duration: 180,
-        score: 1.0,
-        fileName: `song_${i}.mp3`,
-        contentTypeId: songType.id
-      });
-    }
-    await Content.bulkCreate(songsToCreate);
+    // 4. Create a couple songs
+    const song1 = await Content.create({
+      title: 'Rock Anthem 1',
+      contentType: 'song',
+      fileName: 'rock_anthem_1.mp3',
+      formatId: rockFormat.id,
+      contentTypeId: songType.id,
+      duration: 180,
+    });
+    const song2 = await Content.create({
+      title: 'Smooth Jazz 1',
+      contentType: 'song',
+      fileName: 'smooth_jazz_1.mp3',
+      formatId: jazzFormat.id,
+      contentTypeId: songType.id,
+      duration: 210,
+    });
 
-    // 4) Create 2 ads
+    // 5. Create a valid ad (no expiration)
     const ad1 = await Content.create({
       title: 'Car Dealership Ad',
       contentType: 'ad',
-      duration: 30,
-      score: 1.0,
       fileName: 'car_dealership_ad.mp3',
-      contentTypeId: adType.id
-    });
-    const ad2 = await Content.create({
-      title: 'Insurance Ad',
-      contentType: 'ad',
+      contentTypeId: adType.id,
       duration: 30,
-      score: 1.0,
-      fileName: 'insurance_ad.mp3',
-      contentTypeId: adType.id
+      // no endDate => it never expires
     });
 
-    // 5) Create a Cart for ads
+    // 6. Create an EXPIRED ad
+    // Let's set endDate to a date in the past so it's invalid
+    const expiredAd = await Content.create({
+      title: 'Old Expired Ad',
+      contentType: 'ad',
+      fileName: 'old_ad.mp3',
+      contentTypeId: adType.id,
+      duration: 30,
+      endDate: new Date('2020-01-01T00:00:00.000Z'), // definitely in the past
+    });
+
+    // 7. Create an Ad Cart
     const adCart = await Cart.create({
       cartName: 'Ad Cart',
-      cartType: 'advertising'
+      cartType: 'advertising',
     });
 
-    // 6) Link the 2 ads to the Ad Cart
+    // 8. Add BOTH ads to the Ad Cart (the valid one and the expired one)
     await CartItem.bulkCreate([
       {
         cartId: adCart.id,
-        contentId: ad1.id,
-        rotationWeight: 1.0
+        contentId: ad1.id, // valid ad
       },
       {
         cartId: adCart.id,
-        contentId: ad2.id,
-        rotationWeight: 1.0
-      }
+        contentId: expiredAd.id, // expired ad
+      },
     ]);
 
-    // 7) Create a Clock Template with 6 slots in an hour
-    // E.g. Song @ 0, Song @ 10, Cart @ 20, Song @ 30, Song @ 40, Cart @ 50
-    // This is just an example distribution
-    const clockTemplate = await ClockTemplate.create({
-      templateName: '1-Hour Template',
-      description: '4 songs, 2 ads'
+    // 9. Create a ClockTemplate with 2 slots (song, then cart)
+    const template1 = await ClockTemplate.create({
+      templateName: 'Default Hour',
+      description: 'Song at offset 0, ad cart at offset 15',
     });
-
     await ClockTemplateSlot.bulkCreate([
       {
-        clockTemplateId: clockTemplate.id,
+        clockTemplateId: template1.id,
         minuteOffset: 0,
-        slotType: 'song'
+        slotType: 'song',
       },
       {
-        clockTemplateId: clockTemplate.id,
-        minuteOffset: 10,
-        slotType: 'song'
-      },
-      {
-        clockTemplateId: clockTemplate.id,
-        minuteOffset: 20,
+        clockTemplateId: template1.id,
+        minuteOffset: 15,
         slotType: 'cart',
-        cartId: adCart.id
+        cartId: adCart.id,
       },
-      {
-        clockTemplateId: clockTemplate.id,
-        minuteOffset: 30,
-        slotType: 'song'
-      },
-      {
-        clockTemplateId: clockTemplate.id,
-        minuteOffset: 40,
-        slotType: 'song'
-      },
-      {
-        clockTemplateId: clockTemplate.id,
-        minuteOffset: 50,
-        slotType: 'cart',
-        cartId: adCart.id
-      }
     ]);
 
-    // 8) Create Station #1 and assign the clock template
-    const station1 = await Station.create({
-      name: 'Station #1',
-      defaultClockTemplateId: clockTemplate.id
-    });
-
+    // 10. Create Station #1
+    const station1 = await Station.create({ name: 'Station #1' });
     await StationProfile.create({
       stationId: station1.id,
       storeHours: '9am-5pm',
       contactInfo: '555-1234',
-      dailyTransactionsEstimate: 100
     });
 
-    // 9) Create Station #2 (no default clock template)
-    const station2 = await Station.create({
-      name: 'Station #2'
+    // 11. Create a schedule so station #1 uses template1 for all hours (0..23)
+    await StationSchedule.create({
+      stationId: station1.id,
+      clockTemplateId: template1.id,
+      startHour: 0,
+      endHour: 23,
     });
 
-    console.log('Database synced and seeded successfully.');
+    console.log('Database synced and seeded with an expired ad.');
   } catch (error) {
     console.error('Seeding error:', error);
   } finally {

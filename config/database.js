@@ -2,7 +2,7 @@
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
 
-// For simplicity, default to SQLite in development.
+// Default to SQLite unless ENV vars specify otherwise
 const sequelize = new Sequelize(
   process.env.DB_NAME || '',
   process.env.DB_USER || '',
@@ -11,7 +11,7 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST || 'localhost',
     dialect: process.env.DB_DIALECT || 'sqlite',
     storage: process.env.DB_STORAGE || 'database.sqlite',
-    logging: false, // set to true for SQL debug logs
+    logging: false, // set true if you want to see SQL logs
   }
 );
 

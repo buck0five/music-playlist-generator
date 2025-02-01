@@ -10,7 +10,7 @@ Station.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    // Link to a default clock template
+    // fallback default clock template if not covered by schedule
     defaultClockTemplateId: {
       type: DataTypes.INTEGER,
       allowNull: true,

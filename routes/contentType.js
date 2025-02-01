@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { ContentType } = require('../models');
 
-// GET all content types
+// GET all
 router.get('/', async (req, res) => {
   try {
     const types = await ContentType.findAll();
@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// CREATE a content type
+// CREATE
 router.post('/', async (req, res) => {
   try {
     const { name } = req.body;
@@ -29,7 +29,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET a single content type
 router.get('/:id', async (req, res) => {
   try {
     const type = await ContentType.findByPk(req.params.id);

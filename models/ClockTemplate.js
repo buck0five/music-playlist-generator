@@ -10,7 +10,6 @@ ClockTemplate.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    // If you want to assign a "type" or "description," add here
     description: {
       type: DataTypes.STRING,
       allowNull: true,

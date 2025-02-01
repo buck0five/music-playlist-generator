@@ -3,7 +3,6 @@ const express = require('express');
 const router = express.Router();
 const { Station, StationProfile } = require('../models');
 
-// GET profile by stationId
 router.get('/:stationId', async (req, res) => {
   try {
     const { stationId } = req.params;
@@ -18,19 +17,17 @@ router.get('/:stationId', async (req, res) => {
   }
 });
 
-// CREATE or UPDATE
+// CREATE or UPDATE station profile
 router.post('/:stationId', async (req, res) => {
   try {
     const { stationId } = req.params;
     const { storeHours, contactInfo, dailyTransactionsEstimate } = req.body;
 
-    // Ensure station exists
     const station = await Station.findByPk(stationId);
     if (!station) {
       return res.status(404).json({ error: 'Station not found.' });
     }
 
-    // Find or create
     let profile = await StationProfile.findOne({ where: { stationId } });
     if (!profile) {
       profile = await StationProfile.create({
@@ -45,7 +42,7 @@ router.post('/:stationId', async (req, res) => {
 
     res.json(profile);
   } catch (err) {
-    console.error('Error creating/updating profile:', err);
+    console.error('Error creating/updating station profile:', err);
     res.status(500).json({ error: 'Server error.' });
   }
 });

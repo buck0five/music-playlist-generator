@@ -10,7 +10,6 @@ Cart.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    // e.g. 'AdCart', 'JingleCart', 'VendorCart', etc.
     cartType: {
       type: DataTypes.STRING,
       allowNull: true,

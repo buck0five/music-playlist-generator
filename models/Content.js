@@ -10,8 +10,7 @@ Content.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    // Instead of a string like 'song','ad', etc. we can now link to ContentType via contentTypeId
-    // But if you still want a quick reference, you can keep this:
+    // e.g., "song", "ad", "jingle"
     contentType: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -20,21 +19,18 @@ Content.init(
     duration: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 180, // seconds
+      defaultValue: 180, // 3 min
     },
-    // Optional 'score' to help with feedback weighting
     score: {
       type: DataTypes.FLOAT,
       defaultValue: 1.0,
     },
-    // A filename or path reference for the M3U
     fileName: {
       type: DataTypes.STRING,
       allowNull: false,
       defaultValue: 'example.mp3',
     },
-
-    // Start/end date for time-sensitive content (ads)
+    // For time-based logic (ads expiring, etc.)
     startDate: {
       type: DataTypes.DATE,
       allowNull: true,
@@ -43,12 +39,10 @@ Content.init(
       type: DataTypes.DATE,
       allowNull: true,
     },
-
-    // Visibility or role-based access can be stored here
     visibility: {
       type: DataTypes.STRING,
       allowNull: true,
-      defaultValue: 'public', // e.g. 'adminOnly'
+      defaultValue: 'public',
     },
   },
   {

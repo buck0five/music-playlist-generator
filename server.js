@@ -6,7 +6,7 @@ const apiRoutes = require('./routes/api');
 const app = express();
 app.use(express.json());
 
-// Attach /api routes
+// Mount /api routes
 app.use('/api', apiRoutes);
 
 // Basic root route
@@ -14,17 +14,14 @@ app.get('/', (req, res) => {
   res.send('Music Playlist Generator API is running...');
 });
 
-// Start server & sync database
-const PORT = process.env.PORT || 3000;
+// Start server on port 5000
+const PORT = process.env.PORT || 5000;
 
 sequelize
-  .sync({ alter:true }) // or .sync({ alter: true }) in dev mode
+  .sync()
   .then(() => {
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
-      console.log('Database connected successfully.');
     });
   })
-  .catch((err) => {
-    console.error('Database connection error:', err);
-  });
+  .catch((err) => console.error('Database connection error:', err));

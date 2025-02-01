@@ -3,7 +3,7 @@ const express = require('express');
 const router = express.Router();
 const { ClockTemplate, ClockTemplateSlot } = require('../models');
 
-// GET all clock templates
+// GET all templates
 router.get('/', async (req, res) => {
   try {
     const templates = await ClockTemplate.findAll({
@@ -16,24 +16,22 @@ router.get('/', async (req, res) => {
   }
 });
 
-// CREATE a new clock template
+// CREATE a new template
 router.post('/', async (req, res) => {
   try {
     const { templateName, description, slots } = req.body;
     const newTemplate = await ClockTemplate.create({ templateName, description });
-
-    // If "slots" array is passed, create slot records
-    // slots: [ { minuteOffset: 0, slotType: 'song' }, { minuteOffset: 15, slotType: 'cart' }, ... ]
+    // If slots array is provided
     if (Array.isArray(slots)) {
-      for (const slotData of slots) {
+      for (const s of slots) {
         await ClockTemplateSlot.create({
           clockTemplateId: newTemplate.id,
-          minuteOffset: slotData.minuteOffset || 0,
-          slotType: slotData.slotType || 'song',
+          minuteOffset: s.minuteOffset || 0,
+          slotType: s.slotType || 'song',
+          cartId: s.cartId || null,
         });
       }
     }
-
     const result = await ClockTemplate.findByPk(newTemplate.id, {
       include: [{ model: ClockTemplateSlot, as: 'slots' }],
     });
@@ -44,7 +42,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET single template by ID (with slots)
+// GET single template
 router.get('/:id', async (req, res) => {
   try {
     const template = await ClockTemplate.findByPk(req.params.id, {
@@ -60,7 +58,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// UPDATE template name/desc
+// UPDATE template
 router.put('/:id', async (req, res) => {
   try {
     const { templateName, description } = req.body;
@@ -76,14 +74,13 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE template (and cascade slots)
+// DELETE template
 router.delete('/:id', async (req, res) => {
   try {
     const template = await ClockTemplate.findByPk(req.params.id);
     if (!template) {
       return res.status(404).json({ error: 'Not found.' });
     }
-    // Deleting the template will also delete slots if you set 'onDelete: cascade' in your associations
     await template.destroy();
     res.json({ success: true });
   } catch (err) {

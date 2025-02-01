@@ -2,38 +2,29 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
-
 const router = express.Router();
 
-// Import routes we created previously
 const stationRoutes = require('./station');
+const stationProfileRoutes = require('./stationProfile');
+const stationScheduleRoutes = require('./stationSchedule');
 const clockTemplateRoutes = require('./clockTemplate');
 const cartRoutes = require('./cart');
 const contentTypeRoutes = require('./contentType');
-const stationProfileRoutes = require('./stationProfile');
 
-// If you have your generatePlaylist logic in generatePlaylist.js:
-const { generatePlaylist, updateContentScores, generatePlaylistForStation } = require('../generatePlaylist');
 const { Feedback } = require('../models');
+const { generatePlaylistForStation } = require('../generatePlaylist');
 
-// Attach each sub-route under /api
-router.use('/stations', stationRoutes); // e.g. GET/PUT/POST/DELETE /api/stations
-router.use('/clock-templates', clockTemplateRoutes); // /api/clock-templates
-router.use('/carts', cartRoutes); // /api/carts
-router.use('/content-types', contentTypeRoutes); // /api/content-types
-router.use('/station-profiles', stationProfileRoutes); // /api/station-profiles
+const contentRoutes = require('./content');
 
-// Example POST /api/preferences - basic example from earlier
-router.post('/preferences', async (req, res) => {
-  try {
-    const { preferredFormats } = req.body;
-    await generatePlaylist(preferredFormats || []);
-    res.json({ success: true, message: 'Playlist generated.' });
-  } catch (error) {
-    console.error('Error generating playlist:', error);
-    res.status(500).json({ error: 'Error generating playlist.' });
-  }
-});
+// Mount sub-routes
+router.use('/stations', stationRoutes);
+router.use('/station-profiles', stationProfileRoutes);
+router.use('/station-schedules', stationScheduleRoutes);
+router.use('/clock-templates', clockTemplateRoutes);
+router.use('/carts', cartRoutes);
+router.use('/content-types', contentTypeRoutes);
+router.use('/content', contentRoutes);
+
 
 // Example POST /api/feedback
 router.post('/feedback', async (req, res) => {
@@ -44,13 +35,13 @@ router.post('/feedback', async (req, res) => {
     }
     await Feedback.create({ contentId, feedbackType });
     res.json({ success: true, message: 'Feedback recorded.' });
-  } catch (error) {
-    console.error('Error recording feedback:', error);
+  } catch (err) {
+    console.error('Error recording feedback:', err);
     res.status(500).json({ error: 'Error recording feedback.' });
   }
 });
 
-// GET /api/live-playlist
+// Example GET /api/live-playlist - if you had a single global playlist?
 router.get('/live-playlist', (req, res) => {
   try {
     const filePath = path.join(__dirname, '..', 'playlist.m3u');
@@ -66,8 +57,7 @@ router.get('/live-playlist', (req, res) => {
   }
 });
 
-// OPTIONAL: A route to generate a playlist for a specific station
-// if you are using "generatePlaylistForStation"
+// POST /api/generate-playlist
 router.post('/generate-playlist', async (req, res) => {
   try {
     const { stationId } = req.body;

@@ -16,7 +16,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// CREATE a new cart
+// CREATE cart
 router.post('/', async (req, res) => {
   try {
     const { cartName, cartType } = req.body;
@@ -44,7 +44,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// UPDATE cart name/type
+// UPDATE cart
 router.put('/:id', async (req, res) => {
   try {
     const { cartName, cartType } = req.body;
@@ -75,14 +75,12 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// ADD a content item to a cart
-// Body: { contentId, rotationWeight }
+// ADD content to a cart
 router.post('/:cartId/items', async (req, res) => {
   try {
     const { cartId } = req.params;
     const { contentId, rotationWeight } = req.body;
 
-    // Make sure cart & content exist
     const cart = await Cart.findByPk(cartId);
     if (!cart) {
       return res.status(404).json({ error: 'Cart not found.' });
@@ -97,7 +95,6 @@ router.post('/:cartId/items', async (req, res) => {
       contentId: content.id,
       rotationWeight: rotationWeight || 1.0,
     });
-
     res.json(newItem);
   } catch (err) {
     console.error('Error adding cart item:', err);
@@ -105,7 +102,7 @@ router.post('/:cartId/items', async (req, res) => {
   }
 });
 
-// REMOVE a content item from a cart
+// REMOVE content from cart
 router.delete('/:cartId/items/:itemId', async (req, res) => {
   try {
     const { cartId, itemId } = req.params;

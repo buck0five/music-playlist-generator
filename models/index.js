@@ -1,21 +1,19 @@
 // models/index.js
 const sequelize = require('../config/database');
 
-// Existing models
 const Format = require('./Format');
 const Content = require('./Content');
 const Feedback = require('./Feedback');
 const ContentType = require('./ContentType');
 const Station = require('./Station');
 const StationProfile = require('./StationProfile');
-
-// New models
 const ClockTemplate = require('./ClockTemplate');
 const ClockTemplateSlot = require('./ClockTemplateSlot');
 const Cart = require('./Cart');
 const CartItem = require('./CartItem');
+const StationSchedule = require('./StationSchedule');
 
-// ------------------- ASSOCIATIONS ------------------- //
+// ---------- ASSOCIATIONS ---------- //
 
 // Format <-> Content
 Format.hasMany(Content, { foreignKey: 'formatId', as: 'contents' });
@@ -33,7 +31,7 @@ Feedback.belongsTo(Content, { foreignKey: 'contentId', as: 'content' });
 Station.hasOne(StationProfile, { foreignKey: 'stationId', as: 'profile' });
 StationProfile.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
 
-// ------------------- Clock Template ------------------- //
+// ClockTemplate <-> ClockTemplateSlot
 ClockTemplate.hasMany(ClockTemplateSlot, {
   foreignKey: 'clockTemplateId',
   as: 'slots',
@@ -43,17 +41,23 @@ ClockTemplateSlot.belongsTo(ClockTemplate, {
   as: 'clockTemplate',
 });
 
-// Station references a defaultClockTemplateId (no direct association object needed if we store just an ID)
-
-// ------------------- Carts ------------------- //
+// Cart <-> CartItem
 Cart.hasMany(CartItem, { foreignKey: 'cartId', as: 'cartItems' });
 CartItem.belongsTo(Cart, { foreignKey: 'cartId', as: 'cart' });
 
-// Content <-> CartItem (many-to-many through CartItem)
+// Content <-> CartItem (many-to-many via CartItem)
 Content.hasMany(CartItem, { foreignKey: 'contentId', as: 'cartItems' });
 CartItem.belongsTo(Content, { foreignKey: 'contentId', as: 'content' });
 
-// -------------- EXPORT -------------
+// Station <-> StationSchedule (One-to-Many)
+Station.hasMany(StationSchedule, { foreignKey: 'stationId', as: 'schedules' });
+StationSchedule.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
+
+// ClockTemplate <-> StationSchedule (One-to-Many)
+ClockTemplate.hasMany(StationSchedule, { foreignKey: 'clockTemplateId', as: 'usedBySchedules' });
+StationSchedule.belongsTo(ClockTemplate, { foreignKey: 'clockTemplateId', as: 'clockTemplate' });
+
+// ---------- EXPORT ----------
 module.exports = {
   sequelize,
   Format,
@@ -66,4 +70,5 @@ module.exports = {
   ClockTemplateSlot,
   Cart,
   CartItem,
+  StationSchedule,
 };
