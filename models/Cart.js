@@ -1,23 +1,26 @@
 // models/Cart.js
-
-const { DataTypes } = require('sequelize');
+const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Cart = sequelize.define('Cart', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
+class Cart extends Model {}
+
+Cart.init(
+  {
+    cartName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    // e.g. 'AdCart', 'JingleCart', 'VendorCart', etc.
+    cartType: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  description: DataTypes.TEXT,
-  type: {
-    type: DataTypes.ENUM('song', 'ad', 'jingle', 'network_segment'),
-    allowNull: false,
-  },
-});
+  {
+    sequelize,
+    modelName: 'Cart',
+    freezeTableName: true,
+  }
+);
 
 module.exports = Cart;

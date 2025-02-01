@@ -93,7 +93,7 @@ function ManageUsers() {
             Assign Stations:
             <select
               multiple
-              value={user.Stations ? user.Stations.map((s) => s.id.toString()) : []}
+              value={user.UserStations ? user.UserStations.map((s) => s.id.toString()) : []}
               onChange={(e) => updateUserStations(user.id, e)}
             >
               {stations.map((station) => (

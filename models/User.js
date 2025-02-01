@@ -45,4 +45,9 @@ const User = sequelize.define(
   }
 );
 
+// Add comparePassword method to the User model
+User.prototype.comparePassword = async function (password) {
+  return await bcrypt.compare(password, this.password);
+};
+
 module.exports = User;

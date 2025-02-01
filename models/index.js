@@ -1,69 +1,69 @@
 // models/index.js
-
 const sequelize = require('../config/database');
 
-const User = require('./User');
-const Platform = require('./Platform');
-const Company = require('./Company');
-const Station = require('./Station');
-const ContentLibrary = require('./ContentLibrary');
+// Existing models
+const Format = require('./Format');
 const Content = require('./Content');
-const ContentLibraryAssignment = require('./ContentLibraryAssignment');
-const UserStation = require('./UserStation');
+const Feedback = require('./Feedback');
+const ContentType = require('./ContentType');
+const Station = require('./Station');
+const StationProfile = require('./StationProfile');
 
-// Define associations
+// New models
+const ClockTemplate = require('./ClockTemplate');
+const ClockTemplateSlot = require('./ClockTemplateSlot');
+const Cart = require('./Cart');
+const CartItem = require('./CartItem');
 
-// User ↔ Station
-User.belongsToMany(Station, {
-  through: UserStation,
-  as: 'Stations',
-  foreignKey: 'userId',
+// ------------------- ASSOCIATIONS ------------------- //
+
+// Format <-> Content
+Format.hasMany(Content, { foreignKey: 'formatId', as: 'contents' });
+Content.belongsTo(Format, { foreignKey: 'formatId', as: 'format' });
+
+// ContentType <-> Content
+ContentType.hasMany(Content, { foreignKey: 'contentTypeId', as: 'contentsOfType' });
+Content.belongsTo(ContentType, { foreignKey: 'contentTypeId', as: 'contentTypeDef' });
+
+// Content <-> Feedback
+Content.hasMany(Feedback, { foreignKey: 'contentId', as: 'feedbackEntries' });
+Feedback.belongsTo(Content, { foreignKey: 'contentId', as: 'content' });
+
+// Station <-> StationProfile (One-to-One)
+Station.hasOne(StationProfile, { foreignKey: 'stationId', as: 'profile' });
+StationProfile.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
+
+// ------------------- Clock Template ------------------- //
+ClockTemplate.hasMany(ClockTemplateSlot, {
+  foreignKey: 'clockTemplateId',
+  as: 'slots',
 });
-Station.belongsToMany(User, {
-  through: UserStation,
-  as: 'Users',
-  foreignKey: 'stationId',
+ClockTemplateSlot.belongsTo(ClockTemplate, {
+  foreignKey: 'clockTemplateId',
+  as: 'clockTemplate',
 });
 
-// Content ↔ ContentLibrary
-Content.belongsToMany(ContentLibrary, {
-  through: 'ContentLibraryContent',
-  as: 'ContentLibraries',
-  foreignKey: 'contentId',
-});
-ContentLibrary.belongsToMany(Content, {
-  through: 'ContentLibraryContent',
-  as: 'Contents',
-  foreignKey: 'contentLibraryId',
-});
+// Station references a defaultClockTemplateId (no direct association object needed if we store just an ID)
 
-// ContentLibraryAssignment
-ContentLibrary.hasMany(ContentLibraryAssignment, {
-  foreignKey: 'contentLibraryId',
-  as: 'Assignments',
-});
-ContentLibraryAssignment.belongsTo(ContentLibrary, {
-  foreignKey: 'contentLibraryId',
-  as: 'ContentLibrary',
-});
+// ------------------- Carts ------------------- //
+Cart.hasMany(CartItem, { foreignKey: 'cartId', as: 'cartItems' });
+CartItem.belongsTo(Cart, { foreignKey: 'cartId', as: 'cart' });
 
-// Company ↔ Platform
-Company.belongsTo(Platform, { foreignKey: 'platformId', as: 'Platform' });
-Platform.hasMany(Company, { foreignKey: 'platformId', as: 'Companies' });
+// Content <-> CartItem (many-to-many through CartItem)
+Content.hasMany(CartItem, { foreignKey: 'contentId', as: 'cartItems' });
+CartItem.belongsTo(Content, { foreignKey: 'contentId', as: 'content' });
 
-// Station ↔ Company
-Station.belongsTo(Company, { foreignKey: 'companyId', as: 'Company' });
-Company.hasMany(Station, { foreignKey: 'companyId', as: 'Stations' });
-
-// Export models
+// -------------- EXPORT -------------
 module.exports = {
   sequelize,
-  User,
-  Platform,
-  Company,
-  Station,
-  ContentLibrary,
+  Format,
   Content,
-  ContentLibraryAssignment,
-  UserStation,
+  Feedback,
+  ContentType,
+  Station,
+  StationProfile,
+  ClockTemplate,
+  ClockTemplateSlot,
+  Cart,
+  CartItem,
 };

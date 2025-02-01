@@ -3,13 +3,13 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://173.230.134.186:5000', // Replace with your server IP and port
+  baseURL: 'http://173.230.134.186:5000', 
 });
 
-// Add a request interceptor to include the Authorization header
+// Include token in request headers
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token'); // Assuming token is stored in localStorage
+    const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
     }

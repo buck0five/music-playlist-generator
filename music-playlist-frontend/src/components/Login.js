@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import api from '../services/api';
+import { Link } from 'react-router-dom'; // Import Link
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -46,6 +47,9 @@ function Login({ onLogin }) {
         /><br />
         <button type="submit">Login</button>
       </form>
+      <p>
+        Don't have an account? <Link to="/register">Register here</Link>
+      </p>
     </div>
   );
 }

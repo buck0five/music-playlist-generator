@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import Login from './components/Login';
+import Register from './components/Register'; // If you have a Register component
 import AdminDashboard from './components/AdminDashboard';
 import UserDashboard from './components/UserDashboard';
-import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -32,7 +32,10 @@ function App() {
     <Router>
       <Routes>
         {!user && (
-          <Route path="/login" element={<Login onLogin={handleLogin} />} />
+          <>
+            <Route path="/login" element={<Login onLogin={handleLogin} />} />
+            <Route path="/register" element={<Register />} />
+          </>
         )}
         {user && user.role === 'admin' && (
           <Route

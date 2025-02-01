@@ -6,10 +6,6 @@ import api from '../services/api';
 function ManageStations() {
   const [stations, setStations] = useState([]);
   const [companies, setCompanies] = useState([]);
-  const [newStation, setNewStation] = useState({
-    name: '',
-    companyId: '',
-  });
 
   useEffect(() => {
     fetchStations();
@@ -36,21 +32,16 @@ function ManageStations() {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewStation({ ...newStation, [name]: value });
-  };
-
-  const createStation = async () => {
-    if (!newStation.name.trim() || !newStation.companyId) {
-      alert('Please provide station name and select a company.');
-      return;
-    }
+  const createStation = async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const name = form.name.value;
+    const companyId = form.companyId.value;
 
     try {
-      await api.post('/admin/stations', newStation);
-      setNewStation({ name: '', companyId: '' });
+      await api.post('/admin/stations', { name, companyId });
       fetchStations();
+      form.reset();
       alert('Station created successfully!');
     } catch (error) {
       console.error('Error creating station:', error.response?.data || error.message);
@@ -74,19 +65,9 @@ function ManageStations() {
   return (
     <div>
       <h2>Manage Stations</h2>
-      <div>
-        <input
-          type="text"
-          name="name"
-          placeholder="New Station Name"
-          value={newStation.name}
-          onChange={handleInputChange}
-        />
-        <select
-          name="companyId"
-          value={newStation.companyId}
-          onChange={handleInputChange}
-        >
+      <form onSubmit={createStation}>
+        <input type="text" name="name" placeholder="Station Name" required />
+        <select name="companyId" required>
           <option value="">Select Company</option>
           {companies.map((company) => (
             <option key={company.id} value={company.id}>
@@ -94,8 +75,8 @@ function ManageStations() {
             </option>
           ))}
         </select>
-        <button onClick={createStation}>Create Station</button>
-      </div>
+        <button type="submit">Create Station</button>
+      </form>
       <ul>
         {stations.map((station) => (
           <li key={station.id}>

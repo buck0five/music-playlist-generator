@@ -1,27 +1,61 @@
 // models/Content.js
-
-const { DataTypes } = require('sequelize');
+const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Content = sequelize.define('Content', {
-  title: {
-    type: DataTypes.STRING,
-    allowNull: false,
+class Content extends Model {}
+
+Content.init(
+  {
+    title: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    // Instead of a string like 'song','ad', etc. we can now link to ContentType via contentTypeId
+    // But if you still want a quick reference, you can keep this:
+    contentType: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'song',
+    },
+    duration: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 180, // seconds
+    },
+    // Optional 'score' to help with feedback weighting
+    score: {
+      type: DataTypes.FLOAT,
+      defaultValue: 1.0,
+    },
+    // A filename or path reference for the M3U
+    fileName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: 'example.mp3',
+    },
+
+    // Start/end date for time-sensitive content (ads)
+    startDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    endDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+
+    // Visibility or role-based access can be stored here
+    visibility: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      defaultValue: 'public', // e.g. 'adminOnly'
+    },
   },
-  contentType: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  file_path: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  duration: {
-    type: DataTypes.INTEGER,
-  },
-  tags: {
-    type: DataTypes.STRING,
-  },
-});
+  {
+    sequelize,
+    modelName: 'Content',
+    freezeTableName: true,
+  }
+);
 
 module.exports = Content;

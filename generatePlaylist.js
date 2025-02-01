@@ -1,149 +1,174 @@
 // generatePlaylist.js
-
 const fs = require('fs');
 const path = require('path');
-const { Op } = require('sequelize');
 const {
-  User,
-  Station,
-  Company,
-  Platform,
   Content,
-  ContentLibraryAssignment,
-  ContentLibrary,
+  Feedback,
+  Station,
   ClockTemplate,
-  ClockSegment,
+  ClockTemplateSlot,
+  Cart,
+  CartItem,
+  sequelize,
 } = require('./models');
 
-const generatePlaylist = async (userId) => {
-  try {
-    // Fetch user with associated stations, companies, and platforms
-    const user = await User.findByPk(userId, {
-      include: [
-        {
-          model: Station,
-          as: 'AssignedStations',
-          include: [
-            {
-              model: Company,
-              as: 'Company',
-              include: [
-                {
-                  model: Platform,
-                  as: 'Platform',
-                },
-              ],
-            },
-          ],
-        },
-      ],
-    });
+/**
+ * (Optional) Adjust scores based on feedback (like/dislike).
+ * If you aren't using a feedback system yet, you can simplify or remove this.
+ */
+async function updateContentScores() {
+  // Example logic: for each 'like', +0.1; for each 'dislike', -0.1
+  const allFeedback = await Feedback.findAll();
+  for (const fb of allFeedback) {
+    const content = await Content.findByPk(fb.contentId);
+    if (!content) continue;
 
-    if (!user) {
-      throw new Error('User not found.');
+    if (fb.feedbackType === 'like') {
+      content.score += 0.1;
+    } else if (fb.feedbackType === 'dislike') {
+      content.score -= 0.1;
     }
-
-    // Collect IDs
-    const stationIds = user.AssignedStations.map((station) => station.id);
-    const companyIds = user.AssignedStations.map((station) => station.Company.id);
-    const platformIds = user.AssignedStations.map(
-      (station) => station.Company.Platform.id
-    );
-
-    // Fetch clock template (assumed to be default for simplicity)
-    const clockTemplate = await ClockTemplate.findOne({
-      where: { formatId: null },
-      include: [{ model: ClockSegment, as: 'Segments' }],
-      order: [[{ model: ClockSegment, as: 'Segments' }, 'order', 'ASC']],
-    });
-
-    if (!clockTemplate) {
-      throw new Error('No clock template found.');
-    }
-
-    // Fetch content libraries assigned to user's entities
-    const contentLibraryAssignments = await ContentLibraryAssignment.findAll({
-      where: {
-        [Op.or]: [
-          { assignableType: 'Station', assignableId: { [Op.in]: stationIds } },
-          { assignableType: 'Company', assignableId: { [Op.in]: companyIds } },
-          { assignableType: 'Platform', assignableId: { [Op.in]: platformIds } },
-        ],
-      },
-      include: {
-        model: ContentLibrary,
-        as: 'ContentLibrary',
-        include: {
-          model: Content,
-          as: 'Contents',
-        },
-      },
-    });
-
-    // Collect all contents
-    let allContents = [];
-    for (const assignment of contentLibraryAssignments) {
-      const contents = assignment.ContentLibrary.Contents;
-      allContents = allContents.concat(contents);
-    }
-
-    // Remove duplicates
-    allContents = Array.from(new Set(allContents.map((c) => c.id))).map((id) =>
-      allContents.find((c) => c.id === id)
-    );
-
-    // Organize contents by type
-    const contentsByType = {};
-    allContents.forEach((content) => {
-      if (!contentsByType[content.contentType]) {
-        contentsByType[content.contentType] = [];
-      }
-      contentsByType[content.contentType].push(content);
-    });
-
-    // Generate playlist
-    let playlistEntries = [];
-
-    for (const segment of clockTemplate.Segments) {
-      const contentType = segment.contentType;
-      const availableContents = contentsByType[contentType] || [];
-
-      if (availableContents.length === 0) {
-        console.warn(`No available content for type ${contentType}. Skipping.`);
-        continue;
-      }
-
-      // Select content (e.g., random selection for simplicity)
-      const selectedContent =
-        availableContents[Math.floor(Math.random() * availableContents.length)];
-
-      playlistEntries.push({
-        file_path: selectedContent.file_path,
-        title: selectedContent.title,
-      });
-    }
-
-    // Ensure the 'playlists' directory exists
-    const playlistDir = path.join(__dirname, 'playlists');
-    if (!fs.existsSync(playlistDir)) {
-      fs.mkdirSync(playlistDir);
-    }
-
-    // Write playlist to file
-    const playlistPath = path.join(playlistDir, `playlist_user_${userId}.m3u`);
-    const playlistContent = playlistEntries
-      .map((entry) => `#EXTINF:-1,${entry.title}\n${entry.file_path}`)
-      .join('\n');
-
-    fs.writeFileSync(playlistPath, playlistContent);
-
-    console.log(`Playlist generated for user ${userId} at ${playlistPath}`);
-
-    return playlistPath;
-  } catch (error) {
-    console.error('Error generating playlist:', error);
-    throw error;
+    await content.save();
   }
-};
+}
 
-module.exports = generatePlaylist;
+/**
+ * Generate a playlist for the given stationId using
+ * the station's defaultClockTemplate. This version includes
+ * debug logs and a failsafe to avoid infinite loops.
+ */
+async function generatePlaylistForStation(stationId) {
+  console.log(`\n\n--- generatePlaylistForStation started for stationId=${stationId} ---`);
+
+  // 1. Update content scores if needed
+  await updateContentScores();
+
+  // 2. Fetch the Station
+  const station = await Station.findByPk(stationId);
+  if (!station) {
+    throw new Error(`Station ${stationId} not found.`);
+  }
+
+  if (!station.defaultClockTemplateId) {
+    throw new Error(`Station ${stationId} has no default clock template assigned.`);
+  }
+
+  // 3. Fetch the ClockTemplate + Slots
+  const clockTemplate = await ClockTemplate.findByPk(station.defaultClockTemplateId, {
+    include: [{ model: ClockTemplateSlot, as: 'slots' }],
+  });
+  if (!clockTemplate) {
+    throw new Error(`ClockTemplate ${station.defaultClockTemplateId} not found.`);
+  }
+
+  // Sort slots by minuteOffset
+  const slots = clockTemplate.slots.sort((a, b) => a.minuteOffset - b.minuteOffset);
+
+  // 4. We'll build a 1-hour playlist for debugging (3600s).
+  // If you want 24 hours, set 86400, but ensure you have enough songs to fill that time.
+  const SECONDS_TARGET = 3600; // 1 hour
+  let totalDuration = 0;
+  const playlist = [];
+
+  let iterationCount = 0;
+  const MAX_ITERATIONS = 300; // failsafe so we don't loop forever
+
+  while (totalDuration < SECONDS_TARGET) {
+    iterationCount++;
+    if (iterationCount > MAX_ITERATIONS) {
+      console.log('Failsafe triggered: too many iterations without reaching target duration.');
+      break;
+    }
+    console.log(`\n[Loop iteration #${iterationCount}] totalDuration=${totalDuration}`);
+
+    // For each slot in the clock template (like "song", "cart", etc.)
+    for (const slot of slots) {
+      console.log(`  Handling slot: minuteOffset=${slot.minuteOffset}, slotType=${slot.slotType}, cartId=${slot.cartId}`);
+
+      if (slot.slotType === 'song') {
+        // Try to find a top scoring song
+        const bestSong = await Content.findOne({
+          where: { contentType: 'song' }, // ensure your seed data matches this exact string
+          order: [['score', 'DESC']],
+        });
+
+        if (!bestSong) {
+          // No songs found -> break to avoid infinite loop
+          console.log('  No songs found! Breaking out to avoid infinite loop...');
+          totalDuration = SECONDS_TARGET; // force end
+          break;
+        }
+
+        console.log(`  Found song: ${bestSong.title}, duration=${bestSong.duration}`);
+        playlist.push(bestSong);
+        totalDuration += bestSong.duration;
+      }
+      else if (slot.slotType === 'cart') {
+        // We expect a cartId
+        if (!slot.cartId) {
+          console.log('  cart slot has no cartId, skipping.');
+          continue;
+        }
+        const thisCart = await Cart.findByPk(slot.cartId, { include: ['cartItems'] });
+        if (!thisCart) {
+          console.log(`  Cart ID=${slot.cartId} not found, skipping slot.`);
+          continue;
+        }
+        if (!thisCart.cartItems.length) {
+          console.log(`  Cart ID=${thisCart.id} is empty, skipping slot.`);
+          continue;
+        }
+
+        // pick a random item from the cart
+        const randomIndex = Math.floor(Math.random() * thisCart.cartItems.length);
+        const chosenCartItem = thisCart.cartItems[randomIndex];
+        const contentItem = await Content.findByPk(chosenCartItem.contentId);
+        if (!contentItem) {
+          console.log('  Cart item references missing content, skipping.');
+          continue;
+        }
+
+        console.log(`  Found cart content: ${contentItem.title}, duration=${contentItem.duration}`);
+        playlist.push(contentItem);
+        totalDuration += contentItem.duration;
+      }
+      else {
+        console.log(`  Unknown slotType=${slot.slotType}, skipping slot.`);
+      }
+
+      // If we exceeded the target within this slot iteration, break
+      if (totalDuration >= SECONDS_TARGET) {
+        console.log(`  Reached or exceeded target duration (${SECONDS_TARGET})! Breaking from slots loop.`);
+        break;
+      }
+    } // end for(slot)
+
+    // If totalDuration >= SECONDS_TARGET, we break the while loop
+    if (totalDuration >= SECONDS_TARGET) {
+      console.log(`Achieved target duration: ${totalDuration} >= ${SECONDS_TARGET}. Breaking main loop.`);
+      break;
+    }
+  } // end while
+
+  // 5. Write out the .m3u file
+  const lines = ['#EXTM3U'];
+  for (const item of playlist) {
+    lines.push(`#EXTINF:${item.duration},${item.title}`);
+    lines.push(item.fileName);
+  }
+  const filePath = path.join(__dirname, `playlist_station_${stationId}.m3u`);
+  fs.writeFileSync(filePath, lines.join('\n'), 'utf8');
+
+  console.log(`\n--- generatePlaylistForStation finished. Wrote file ${filePath} with totalDuration=${totalDuration} seconds ---\n`);
+  return playlist;
+}
+
+// Optionally export a function just to update scores:
+async function updateScoresOnly() {
+  await updateContentScores();
+}
+
+module.exports = {
+  generatePlaylistForStation,
+  updateContentScores: updateScoresOnly,
+};

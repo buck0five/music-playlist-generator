@@ -1,111 +1,151 @@
 // seed.js
-
-const sequelize = require('./config/database');
 const {
-  User,
-  Platform,
-  Company,
-  Station,
-  ContentLibrary,
+  sequelize,
+  Format,
   Content,
-  UserStation,
-  ContentLibraryAssignment,
+  Feedback,
+  ContentType,
+  Station,
+  StationProfile,
+  ClockTemplate,
+  ClockTemplateSlot,
+  Cart,
+  CartItem
 } = require('./models');
 
-(async () => {
+async function seed() {
   try {
-    // Drop all tables
-    await sequelize.getQueryInterface().dropAllTables();
-    console.log('All tables dropped.');
+    await sequelize.sync({ force: true }); // Destroys old tables, recreates new
 
-    // Sync the database
-    await sequelize.sync({ force: true });
-    console.log('Database synchronized.');
+    // 1) Create some Formats
+    const rockFormat = await Format.create({ name: 'Rock' });
+    const jazzFormat = await Format.create({ name: 'Jazz' });
 
-    // Create an admin user with plain password
-    const adminUser = await User.create({
-      username: 'admin',
-      email: 'admin@example.com',
-      password: 'adminpassword', // Plain password
-      role: 'admin',
-    });
+    // 2) Create ContentTypes
+    const songType = await ContentType.create({ name: 'Song' });
+    const adType = await ContentType.create({ name: 'Ad' });
 
-    // Create a regular user with plain password
-    const regularUser = await User.create({
-      username: 'user',
-      email: 'user@example.com',
-      password: 'userpassword', // Plain password
-      role: 'end_user',
-    });
+    // 3) Create multiple songs (12 songs, each 180 seconds)
+    // We'll alternate between 'Rock' and 'Jazz' format for demonstration
+    const songsToCreate = [];
+    for (let i = 1; i <= 12; i++) {
+      songsToCreate.push({
+        title: `Song #${i}`,
+        contentType: 'song',
+        formatId: i % 2 === 0 ? jazzFormat.id : rockFormat.id,
+        duration: 180,
+        score: 1.0,
+        fileName: `song_${i}.mp3`,
+        contentTypeId: songType.id
+      });
+    }
+    await Content.bulkCreate(songsToCreate);
 
-    // Create Platforms
-    const platform = await Platform.create({ name: 'Default Platform' });
-
-    // Create Companies
-    const company = await Company.create({
-      name: 'Default Company',
-      platformId: platform.id,
-    });
-
-    // Create Stations
-    const station1 = await Station.create({
-      name: 'Station 1',
-      companyId: company.id,
-    });
-    const station2 = await Station.create({
-      name: 'Station 2',
-      companyId: company.id,
-    });
-
-    // Assign stations to the regular user
-    await regularUser.addStations([station1, station2]);
-
-    // Create Content Libraries
-    const contentLibrary1 = await ContentLibrary.create({
-      name: 'Content Library 1',
-    });
-    const contentLibrary2 = await ContentLibrary.create({
-      name: 'Content Library 2',
-    });
-
-    // Create Contents
-    const content1 = await Content.create({
-      title: 'Song 1',
-      contentType: 'song',
-      file_path: 'uploads/song1.mp3',
-      duration: '3:30',
-      tags: 'pop, upbeat',
-    });
-
-    const content2 = await Content.create({
-      title: 'Ad 1',
+    // 4) Create 2 ads
+    const ad1 = await Content.create({
+      title: 'Car Dealership Ad',
       contentType: 'ad',
-      file_path: 'uploads/ad1.mp3',
-      duration: '0:30',
-      tags: 'promotion, sale',
+      duration: 30,
+      score: 1.0,
+      fileName: 'car_dealership_ad.mp3',
+      contentTypeId: adType.id
+    });
+    const ad2 = await Content.create({
+      title: 'Insurance Ad',
+      contentType: 'ad',
+      duration: 30,
+      score: 1.0,
+      fileName: 'insurance_ad.mp3',
+      contentTypeId: adType.id
     });
 
-    // Associate contents with content libraries
-    await content1.addContentLibraries([contentLibrary1]);
-    await content2.addContentLibraries([contentLibrary2]);
-
-    // Assign content libraries to entities
-    await ContentLibraryAssignment.create({
-      contentLibraryId: contentLibrary1.id,
-      assignableType: 'Station',
-      assignableId: station1.id,
+    // 5) Create a Cart for ads
+    const adCart = await Cart.create({
+      cartName: 'Ad Cart',
+      cartType: 'advertising'
     });
 
-    await ContentLibraryAssignment.create({
-      contentLibraryId: contentLibrary2.id,
-      assignableType: 'Company',
-      assignableId: company.id,
+    // 6) Link the 2 ads to the Ad Cart
+    await CartItem.bulkCreate([
+      {
+        cartId: adCart.id,
+        contentId: ad1.id,
+        rotationWeight: 1.0
+      },
+      {
+        cartId: adCart.id,
+        contentId: ad2.id,
+        rotationWeight: 1.0
+      }
+    ]);
+
+    // 7) Create a Clock Template with 6 slots in an hour
+    // E.g. Song @ 0, Song @ 10, Cart @ 20, Song @ 30, Song @ 40, Cart @ 50
+    // This is just an example distribution
+    const clockTemplate = await ClockTemplate.create({
+      templateName: '1-Hour Template',
+      description: '4 songs, 2 ads'
     });
 
-    console.log('Seeding completed successfully.');
-    process.exit(0);
+    await ClockTemplateSlot.bulkCreate([
+      {
+        clockTemplateId: clockTemplate.id,
+        minuteOffset: 0,
+        slotType: 'song'
+      },
+      {
+        clockTemplateId: clockTemplate.id,
+        minuteOffset: 10,
+        slotType: 'song'
+      },
+      {
+        clockTemplateId: clockTemplate.id,
+        minuteOffset: 20,
+        slotType: 'cart',
+        cartId: adCart.id
+      },
+      {
+        clockTemplateId: clockTemplate.id,
+        minuteOffset: 30,
+        slotType: 'song'
+      },
+      {
+        clockTemplateId: clockTemplate.id,
+        minuteOffset: 40,
+        slotType: 'song'
+      },
+      {
+        clockTemplateId: clockTemplate.id,
+        minuteOffset: 50,
+        slotType: 'cart',
+        cartId: adCart.id
+      }
+    ]);
+
+    // 8) Create Station #1 and assign the clock template
+    const station1 = await Station.create({
+      name: 'Station #1',
+      defaultClockTemplateId: clockTemplate.id
+    });
+
+    await StationProfile.create({
+      stationId: station1.id,
+      storeHours: '9am-5pm',
+      contactInfo: '555-1234',
+      dailyTransactionsEstimate: 100
+    });
+
+    // 9) Create Station #2 (no default clock template)
+    const station2 = await Station.create({
+      name: 'Station #2'
+    });
+
+    console.log('Database synced and seeded successfully.');
   } catch (error) {
-    console.error('Error seeding database:', error);
-    process.exit(1);
+    console.error('Seeding error:', error);
+  } finally {
+    await sequelize.close();
   }
-})();
+}
+
+seed();

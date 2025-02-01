@@ -12,8 +12,6 @@ const UserStation = sequelize.define('UserStation', {
     type: DataTypes.INTEGER,
     allowNull: false,
   },
-}, {
-  tableName: 'UserStations',
 });
 
 module.exports = UserStation;

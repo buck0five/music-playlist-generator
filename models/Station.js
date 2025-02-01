@@ -1,17 +1,26 @@
 // models/Station.js
-
-const { DataTypes } = require('sequelize');
+const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Station = sequelize.define('Station', {
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
+class Station extends Model {}
+
+Station.init(
+  {
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    // Link to a default clock template
+    defaultClockTemplateId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
   },
-  companyId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-  },
-});
+  {
+    sequelize,
+    modelName: 'Station',
+    freezeTableName: true,
+  }
+);
 
 module.exports = Station;

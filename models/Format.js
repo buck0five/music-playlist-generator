@@ -1,20 +1,21 @@
 // models/Format.js
-
-const { DataTypes } = require('sequelize');
+const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
-const Format = sequelize.define('Format', {
-  id: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true,
-  },
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
-  },
-  description: DataTypes.TEXT,
-});
+class Format extends Model {}
 
-// Export the model
+Format.init(
+  {
+    name: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+  },
+  {
+    sequelize,
+    modelName: 'Format',
+    freezeTableName: true,
+  }
+);
+
 module.exports = Format;

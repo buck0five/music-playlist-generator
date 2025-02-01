@@ -1,17 +1,26 @@
 // models/ClockTemplate.js
-
-const { DataTypes } = require('sequelize');
+const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
-const ClockTemplate = sequelize.define('ClockTemplate', {
-  name: {
-    type: DataTypes.STRING,
-    allowNull: false,
+class ClockTemplate extends Model {}
+
+ClockTemplate.init(
+  {
+    templateName: {
+      type: DataTypes.STRING,
+      allowNull: false,
+    },
+    // If you want to assign a "type" or "description," add here
+    description: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
-  formatId: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-  },
-});
+  {
+    sequelize,
+    modelName: 'ClockTemplate',
+    freezeTableName: true,
+  }
+);
 
 module.exports = ClockTemplate;
