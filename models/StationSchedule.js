@@ -24,6 +24,13 @@ StationSchedule.init(
       allowNull: false,
       defaultValue: 23,
     },
+    // New: dayOfWeek 0=Sunday,1=Monday,...6=Saturday
+    // If null => applies to all days
+    dayOfWeek: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      defaultValue: null,
+    },
   },
   {
     sequelize,

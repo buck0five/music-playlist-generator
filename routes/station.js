@@ -1,7 +1,7 @@
 // routes/station.js
 const express = require('express');
 const router = express.Router();
-const { Station } = require('../models');
+const { Station, StationProfile, StationExcludedContent } = require('../models');
 
 // GET all stations
 router.get('/', async (req, res) => {
@@ -14,7 +14,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET one station
+// GET one station by ID
 router.get('/:id', async (req, res) => {
   try {
     const station = await Station.findByPk(req.params.id);
@@ -24,7 +24,7 @@ router.get('/:id', async (req, res) => {
     res.json(station);
   } catch (err) {
     console.error('Error fetching station:', err);
-    res.status(500).json({ error: 'Server error fetching station.' });
+    res.status(500).json({ error: 'Server error.' });
   }
 });
 
@@ -42,7 +42,7 @@ router.post('/', async (req, res) => {
     res.json(newStation);
   } catch (err) {
     console.error('Error creating station:', err);
-    res.status(500).json({ error: 'Server error creating station.' });
+    res.status(500).json({ error: 'Server error.' });
   }
 });
 
@@ -55,14 +55,12 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ error: 'Station not found.' });
     }
     if (name !== undefined) station.name = name;
-    if (defaultClockTemplateId !== undefined) {
-      station.defaultClockTemplateId = defaultClockTemplateId;
-    }
+    if (defaultClockTemplateId !== undefined) station.defaultClockTemplateId = defaultClockTemplateId;
     await station.save();
     res.json(station);
   } catch (err) {
     console.error('Error updating station:', err);
-    res.status(500).json({ error: 'Server error updating station.' });
+    res.status(500).json({ error: 'Server error.' });
   }
 });
 
@@ -77,7 +75,55 @@ router.delete('/:id', async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     console.error('Error deleting station:', err);
-    res.status(500).json({ error: 'Server error deleting station.' });
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// EXCLUDE content for this station
+router.post('/:stationId/exclude-content', async (req, res) => {
+  try {
+    const { stationId } = req.params;
+    const { contentId } = req.body;
+    if (!contentId) {
+      return res.status(400).json({ error: 'contentId is required.' });
+    }
+
+    // Check if station exists
+    const station = await Station.findByPk(stationId);
+    if (!station) {
+      return res.status(404).json({ error: 'Station not found.' });
+    }
+
+    // Exclude content
+    await StationExcludedContent.findOrCreate({
+      where: { stationId, contentId },
+    });
+
+    res.json({ success: true, stationId, contentId });
+  } catch (err) {
+    console.error('Error excluding content:', err);
+    res.status(500).json({ error: 'Server error.' });
+  }
+});
+
+// UNEXCLUDE content for this station
+router.delete('/:stationId/exclude-content/:contentId', async (req, res) => {
+  try {
+    const stationId = parseInt(req.params.stationId, 10);
+    const contentId = parseInt(req.params.contentId, 10);
+
+    const record = await StationExcludedContent.findOne({
+      where: { stationId, contentId },
+    });
+    if (!record) {
+      return res.status(404).json({ error: 'Not currently excluded or not found.' });
+    }
+    await record.destroy();
+
+    res.json({ success: true, stationId, contentId });
+  } catch (err) {
+    console.error('Error unexcluding content:', err);
+    res.status(500).json({ error: 'Server error.' });
   }
 });
 
