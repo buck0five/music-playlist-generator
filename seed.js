@@ -11,22 +11,21 @@ const {
   Cart,
   CartItem,
   StationSchedule,
+  StationExcludedContent,
 } = require('./models');
 
 async function seed() {
   try {
-    // 1. Force sync to recreate tables
     await sequelize.sync({ force: true });
 
-    // 2. Create some Formats
+    // 1. Create a Format
     const rockFormat = await Format.create({ name: 'Rock' });
-    const jazzFormat = await Format.create({ name: 'Jazz' });
 
-    // 3. ContentTypes
+    // 2. ContentTypes: Song, Ad
     const songType = await ContentType.create({ name: 'Song' });
     const adType = await ContentType.create({ name: 'Ad' });
 
-    // 4. Create a couple songs
+    // 3. Create some Content
     const song1 = await Content.create({
       title: 'Rock Anthem 1',
       contentType: 'song',
@@ -34,91 +33,88 @@ async function seed() {
       formatId: rockFormat.id,
       contentTypeId: songType.id,
       duration: 180,
-    });
-    const song2 = await Content.create({
-      title: 'Smooth Jazz 1',
-      contentType: 'song',
-      fileName: 'smooth_jazz_1.mp3',
-      formatId: jazzFormat.id,
-      contentTypeId: songType.id,
-      duration: 210,
+      dailyStartHour: 6, // example: only valid from 6 AM
+      dailyEndHour: 22,  // to 10 PM
     });
 
-    // 5. Create a valid ad (no expiration)
+    const song2 = await Content.create({
+      title: 'Rock Anthem 2',
+      contentType: 'song',
+      fileName: 'rock_anthem_2.mp3',
+      formatId: rockFormat.id,
+      contentTypeId: songType.id,
+      duration: 200,
+      // no daily hour restriction
+    });
+
     const ad1 = await Content.create({
       title: 'Car Dealership Ad',
       contentType: 'ad',
       fileName: 'car_dealership_ad.mp3',
       contentTypeId: adType.id,
       duration: 30,
-      // no endDate => it never expires
+      // Suppose it expires at end of year
+      endDate: new Date('2025-12-31T23:59:59.999Z'),
     });
 
-    // 6. Create an EXPIRED ad
-    // Let's set endDate to a date in the past so it's invalid
-    const expiredAd = await Content.create({
-      title: 'Old Expired Ad',
-      contentType: 'ad',
-      fileName: 'old_ad.mp3',
-      contentTypeId: adType.id,
-      duration: 30,
-      endDate: new Date('2020-01-01T00:00:00.000Z'), // definitely in the past
+    // 4. Create a Cart for ads
+    const adCart = await Cart.create({ cartName: 'Ad Cart', cartType: 'advertising' });
+    await CartItem.create({
+      cartId: adCart.id,
+      contentId: ad1.id,
     });
 
-    // 7. Create an Ad Cart
-    const adCart = await Cart.create({
-      cartName: 'Ad Cart',
-      cartType: 'advertising',
-    });
-
-    // 8. Add BOTH ads to the Ad Cart (the valid one and the expired one)
-    await CartItem.bulkCreate([
-      {
-        cartId: adCart.id,
-        contentId: ad1.id, // valid ad
-      },
-      {
-        cartId: adCart.id,
-        contentId: expiredAd.id, // expired ad
-      },
-    ]);
-
-    // 9. Create a ClockTemplate with 2 slots (song, then cart)
-    const template1 = await ClockTemplate.create({
-      templateName: 'Default Hour',
-      description: 'Song at offset 0, ad cart at offset 15',
+    // 5. Create two clock templates
+    const sundayTemplate = await ClockTemplate.create({
+      templateName: 'Sunday Template',
+      description: 'All songs, no ads',
     });
     await ClockTemplateSlot.bulkCreate([
-      {
-        clockTemplateId: template1.id,
-        minuteOffset: 0,
-        slotType: 'song',
-      },
-      {
-        clockTemplateId: template1.id,
-        minuteOffset: 15,
-        slotType: 'cart',
-        cartId: adCart.id,
-      },
+      { clockTemplateId: sundayTemplate.id, minuteOffset: 0, slotType: 'song' },
+      { clockTemplateId: sundayTemplate.id, minuteOffset: 15, slotType: 'song' },
     ]);
 
-    // 10. Create Station #1
-    const station1 = await Station.create({ name: 'Station #1' });
+    const weekdayTemplate = await ClockTemplate.create({
+      templateName: 'Weekday Template',
+      description: 'Song at 0, Ad cart at 15',
+    });
+    await ClockTemplateSlot.bulkCreate([
+      { clockTemplateId: weekdayTemplate.id, minuteOffset: 0, slotType: 'song' },
+      { clockTemplateId: weekdayTemplate.id, minuteOffset: 15, slotType: 'cart', cartId: adCart.id },
+    ]);
+
+    // 6. Create Station #1
+    const station1 = await Station.create({
+      name: 'Station #1',
+      // no defaultClockTemplateId => we'll rely on schedule
+    });
     await StationProfile.create({
       stationId: station1.id,
       storeHours: '9am-5pm',
       contactInfo: '555-1234',
     });
 
-    // 11. Create a schedule so station #1 uses template1 for all hours (0..23)
+    // 7. StationSchedule: Sunday => dayOfWeek=0 => Sunday Template
     await StationSchedule.create({
       stationId: station1.id,
-      clockTemplateId: template1.id,
+      clockTemplateId: sundayTemplate.id,
       startHour: 0,
       endHour: 23,
+      dayOfWeek: 0, // Sunday
+    });
+    // All other days => dayOfWeek=null => weekday template
+    await StationSchedule.create({
+      stationId: station1.id,
+      clockTemplateId: weekdayTemplate.id,
+      startHour: 0,
+      endHour: 23,
+      dayOfWeek: null,
     });
 
-    console.log('Database synced and seeded with an expired ad.');
+    // 8. (Optional) Exclude a piece of content for Station #1, e.g. "Rock Anthem 2"
+    // StationExcludedContent.create({ stationId: station1.id, contentId: song2.id });
+
+    console.log('Database synced and seeded successfully with day-of-week + time-of-day + exclude logic example.');
   } catch (error) {
     console.error('Seeding error:', error);
   } finally {

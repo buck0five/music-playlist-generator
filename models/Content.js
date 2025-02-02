@@ -10,7 +10,7 @@ Content.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    // e.g., "song", "ad", "jingle"
+    // e.g., "song", "ad"
     contentType: {
       type: DataTypes.STRING,
       allowNull: false,
@@ -19,7 +19,7 @@ Content.init(
     duration: {
       type: DataTypes.INTEGER,
       allowNull: false,
-      defaultValue: 180, // 3 min
+      defaultValue: 180, // 3 minutes
     },
     score: {
       type: DataTypes.FLOAT,
@@ -30,13 +30,22 @@ Content.init(
       allowNull: false,
       defaultValue: 'example.mp3',
     },
-    // For time-based logic (ads expiring, etc.)
+    // Start/end date for multi-day scheduling
     startDate: {
       type: DataTypes.DATE,
       allowNull: true,
     },
     endDate: {
       type: DataTypes.DATE,
+      allowNull: true,
+    },
+    // Time-of-day logic (0..23). If null => no restriction
+    dailyStartHour: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    dailyEndHour: {
+      type: DataTypes.INTEGER,
       allowNull: true,
     },
     visibility: {

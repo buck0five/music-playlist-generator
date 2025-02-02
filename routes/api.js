@@ -4,6 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const router = express.Router();
 
+// Import sub-routes
 const stationRoutes = require('./station');
 const stationProfileRoutes = require('./stationProfile');
 const stationScheduleRoutes = require('./stationSchedule');
@@ -11,37 +12,61 @@ const clockTemplateRoutes = require('./clockTemplate');
 const cartRoutes = require('./cart');
 const contentTypeRoutes = require('./contentType');
 
-const { Feedback } = require('../models');
+// Import models & logic
+const { Feedback, StationExcludedContent, PlaybackLog, Content, Station } = require('../models');
 const { generatePlaylistForStation } = require('../generatePlaylist');
+const { Op } = require('sequelize');
 
-const contentRoutes = require('./content');
-
-// Mount sub-routes
+// --------------- MOUNT SUB-ROUTES ----------------
 router.use('/stations', stationRoutes);
 router.use('/station-profiles', stationProfileRoutes);
 router.use('/station-schedules', stationScheduleRoutes);
 router.use('/clock-templates', clockTemplateRoutes);
 router.use('/carts', cartRoutes);
 router.use('/content-types', contentTypeRoutes);
-router.use('/content', contentRoutes);
 
+// --------------- PLAYLIST GENERATION --------------
+router.post('/generate-playlist', async (req, res) => {
+  try {
+    const { stationId } = req.body;
+    if (!stationId) {
+      return res.status(400).json({ error: 'stationId is required.' });
+    }
+    const playlist = await generatePlaylistForStation(stationId);
+    res.json({ success: true, message: 'Playlist generated.', playlist });
+  } catch (error) {
+    console.error('Error generating playlist:', error);
+    res.status(500).json({ error: 'Error generating playlist.' });
+  }
+});
 
-// Example POST /api/feedback
+// --------------- FEEDBACK ROUTE -------------------
 router.post('/feedback', async (req, res) => {
   try {
-    const { contentId, feedbackType } = req.body;
-    if (!contentId || !feedbackType) {
-      return res.status(400).json({ error: 'Missing contentId or feedbackType.' });
+    // e.g. { "stationId":1, "contentId":7, "feedbackType":"like"|"dislike" }
+    const { stationId, contentId, feedbackType } = req.body;
+    if (!stationId || !contentId || !feedbackType) {
+      return res.status(400).json({ error: 'Missing stationId, contentId, or feedbackType.' });
     }
+
+    // Create the Feedback record
     await Feedback.create({ contentId, feedbackType });
-    res.json({ success: true, message: 'Feedback recorded.' });
+
+    // If dislike => exclude from station
+    if (feedbackType === 'dislike') {
+      await StationExcludedContent.findOrCreate({
+        where: { stationId, contentId },
+      });
+    }
+
+    res.json({ success: true, message: 'Feedback recorded. Content excluded if disliked.' });
   } catch (err) {
     console.error('Error recording feedback:', err);
     res.status(500).json({ error: 'Error recording feedback.' });
   }
 });
 
-// Example GET /api/live-playlist - if you had a single global playlist?
+// --------------- OPTIONAL LIVE-PLAYLIST ROUTE -------------
 router.get('/live-playlist', (req, res) => {
   try {
     const filePath = path.join(__dirname, '..', 'playlist.m3u');
@@ -57,18 +82,47 @@ router.get('/live-playlist', (req, res) => {
   }
 });
 
-// POST /api/generate-playlist
-router.post('/generate-playlist', async (req, res) => {
+// --------------- PLAYBACK LOGS REPORT --------------
+/** 
+ * GET /api/playback-logs?stationId=1&startDate=2025-01-01&endDate=2025-01-31&contentType=ad
+ */
+router.get('/playback-logs', async (req, res) => {
   try {
-    const { stationId } = req.body;
-    if (!stationId) {
-      return res.status(400).json({ error: 'stationId is required.' });
+    const { stationId, startDate, endDate, contentType } = req.query;
+    
+    // Build "where" for PlaybackLog
+    const where = {};
+    if (stationId) where.stationId = stationId;
+    if (startDate || endDate) {
+      where.playedAt = {};
+      if (startDate) {
+        where.playedAt[Op.gte] = new Date(startDate);
+      }
+      if (endDate) {
+        where.playedAt[Op.lte] = new Date(endDate);
+      }
     }
-    const playlist = await generatePlaylistForStation(stationId);
-    res.json({ success: true, message: 'Playlist generated.', playlist });
-  } catch (error) {
-    console.error('Error generating playlist:', error);
-    res.status(500).json({ error: 'Error generating playlist.' });
+
+    // We'll include 'content' so we can filter by contentType
+    const logs = await PlaybackLog.findAll({
+      where,
+      include: [
+        { model: Station, as: 'station' },
+        { model: Content, as: 'content' },
+      ],
+      order: [['playedAt', 'DESC']],
+    });
+
+    // If contentType is specified, filter in memory
+    let filtered = logs;
+    if (contentType) {
+      filtered = logs.filter(log => log.content.contentType === contentType);
+    }
+
+    res.json(filtered);
+  } catch (err) {
+    console.error('Error fetching playback logs:', err);
+    res.status(500).json({ error: 'Server error fetching playback logs.' });
   }
 });
 
