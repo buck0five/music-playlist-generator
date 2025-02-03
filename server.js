@@ -1,10 +1,16 @@
 // server.js
 const express = require('express');
+const cors = require('cors'); // <-- import cors
 const { sequelize } = require('./models');
 const apiRoutes = require('./routes/api');
 
 const app = express();
+
+// Enable JSON parsing
 app.use(express.json());
+
+// Enable CORS for all routes (this line is crucial for cross-origin requests)
+app.use(cors());
 
 // Mount /api routes
 app.use('/api', apiRoutes);
