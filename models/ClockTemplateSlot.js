@@ -6,19 +6,22 @@ class ClockTemplateSlot extends Model {}
 
 ClockTemplateSlot.init(
   {
-    minuteOffset: {
+    clockTemplateId: {
       type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    slotType: {
+      type: DataTypes.STRING, // e.g. "music", "adCart", "jingle", "topHour"
+      allowNull: false,
+    },
+    minuteOffset: {
+      type: DataTypes.INTEGER, // e.g. 0..59
       allowNull: false,
       defaultValue: 0,
     },
-    slotType: {
-      type: DataTypes.STRING,
-      allowNull: false,
-      defaultValue: 'song',
-    },
     cartId: {
       type: DataTypes.INTEGER,
-      allowNull: true,
+      allowNull: true, // if only some slots need a cart
     },
   },
   {

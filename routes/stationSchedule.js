@@ -2,79 +2,90 @@
 const express = require('express');
 const router = express.Router();
 const { StationSchedule } = require('../models');
+const { Op } = require('sequelize');
 
-// GET all schedules, optionally filter by stationId
+// GET /api/station-schedules
 router.get('/', async (req, res) => {
   try {
-    const stationId = req.query.stationId;
-    const where = {};
-    if (stationId) where.stationId = stationId;
-
-    const schedules = await StationSchedule.findAll({ where });
+    const { stationId } = req.query;
+    const whereClause = {};
+    if (stationId) {
+      whereClause.stationId = stationId;
+    }
+    const schedules = await StationSchedule.findAll({ where: whereClause });
     res.json(schedules);
   } catch (err) {
     console.error('Error fetching station schedules:', err);
-    res.status(500).json({ error: 'Server error.' });
+    res.status(500).json({ error: 'Server error fetching station schedules.' });
   }
 });
 
-// CREATE schedule
-// Body example: { stationId, clockTemplateId, startHour, endHour }
+// POST /api/station-schedules
 router.post('/', async (req, res) => {
   try {
-    const { stationId, clockTemplateId, startHour, endHour } = req.body;
-    if (!stationId || !clockTemplateId) {
-      return res.status(400).json({ error: 'stationId and clockTemplateId are required.' });
-    }
-    const newSched = await StationSchedule.create({
+    const { stationId, clockTemplateId, dayOfWeek, startHour, endHour } = req.body;
+    const newSchedule = await StationSchedule.create({
       stationId,
       clockTemplateId,
-      startHour: startHour ?? 0,
-      endHour: endHour ?? 23,
+      dayOfWeek,
+      startHour,
+      endHour,
     });
-    res.json(newSched);
+    res.json(newSchedule);
   } catch (err) {
     console.error('Error creating station schedule:', err);
-    res.status(500).json({ error: 'Server error.' });
+    res.status(500).json({ error: 'Server error creating station schedule.' });
   }
 });
 
-// UPDATE schedule
+// GET /api/station-schedules/:id
+router.get('/:id', async (req, res) => {
+  try {
+    const schedule = await StationSchedule.findByPk(req.params.id);
+    if (!schedule) {
+      return res.status(404).json({ error: 'Schedule not found.' });
+    }
+    res.json(schedule);
+  } catch (err) {
+    console.error('Error fetching schedule:', err);
+    res.status(500).json({ error: 'Server error fetching schedule.' });
+  }
+});
+
+// PUT /api/station-schedules/:id
 router.put('/:id', async (req, res) => {
   try {
-    const scheduleId = req.params.id;
-    const { stationId, clockTemplateId, startHour, endHour } = req.body;
-
-    const sched = await StationSchedule.findByPk(scheduleId);
-    if (!sched) {
+    const schedule = await StationSchedule.findByPk(req.params.id);
+    if (!schedule) {
       return res.status(404).json({ error: 'Schedule not found.' });
     }
-    if (stationId !== undefined) sched.stationId = stationId;
-    if (clockTemplateId !== undefined) sched.clockTemplateId = clockTemplateId;
-    if (startHour !== undefined) sched.startHour = startHour;
-    if (endHour !== undefined) sched.endHour = endHour;
+    const { stationId, clockTemplateId, dayOfWeek, startHour, endHour } = req.body;
+    if (stationId !== undefined) schedule.stationId = stationId;
+    if (clockTemplateId !== undefined) schedule.clockTemplateId = clockTemplateId;
+    if (dayOfWeek !== undefined) schedule.dayOfWeek = dayOfWeek;
+    if (startHour !== undefined) schedule.startHour = startHour;
+    if (endHour !== undefined) schedule.endHour = endHour;
 
-    await sched.save();
-    res.json(sched);
+    await schedule.save();
+    res.json(schedule);
   } catch (err) {
-    console.error('Error updating station schedule:', err);
-    res.status(500).json({ error: 'Server error.' });
+    console.error('Error updating schedule:', err);
+    res.status(500).json({ error: 'Server error updating schedule.' });
   }
 });
 
-// DELETE schedule
+// DELETE /api/station-schedules/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const scheduleId = req.params.id;
-    const sched = await StationSchedule.findByPk(scheduleId);
-    if (!sched) {
+    const schedule = await StationSchedule.findByPk(req.params.id);
+    if (!schedule) {
       return res.status(404).json({ error: 'Schedule not found.' });
     }
-    await sched.destroy();
+    await schedule.destroy();
     res.json({ success: true });
   } catch (err) {
-    console.error('Error deleting station schedule:', err);
-    res.status(500).json({ error: 'Server error.' });
+    console.error('Error deleting schedule:', err);
+    res.status(500).json({ error: 'Server error deleting schedule.' });
   }
 });
 
