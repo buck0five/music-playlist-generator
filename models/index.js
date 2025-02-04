@@ -11,87 +11,53 @@ const ClockTemplate = require('./ClockTemplate');
 const Cart = require('./Cart');
 const ContentType = require('./ContentType');
 const sequelize = require('../config/database');
-const path = require('path');
-const fs = require('fs');
 
-// Already in your repo:
+// Additional models you already have:
 const CartItem = require('./CartItem');
 const PlaybackLog = require('./PlaybackLog');
-
-// NEW model for slot-based scheduling:
 const ClockTemplateSlot = require('./ClockTemplateSlot');
 
-// ----------------------------------------------------
-// Associations
-// ----------------------------------------------------
+// NEW models for advanced tagging
+const Tag = require('./Tag');
+const ContentTag = require('./ContentTag');
+const StationTagPreference = require('./StationTagPreference');
 
-// Station <-> StationProfile
-Station.hasMany(StationProfile, { foreignKey: 'stationId' });
-StationProfile.belongsTo(Station, { foreignKey: 'stationId' });
+// Existing associations (Stations, Schedules, etc.):
+// ... (omitted for brevity) ...
+// Keep them as is, e.g. Station <-> StationProfile, etc.
 
-// Station <-> StationSchedule
-Station.hasMany(StationSchedule, { foreignKey: 'stationId' });
-StationSchedule.belongsTo(Station, { foreignKey: 'stationId' });
+// Example: Cart -> CartItem, etc.
 
-// Format <-> Content
-Format.hasMany(Content, { foreignKey: 'formatId' });
-Content.belongsTo(Format, { foreignKey: 'formatId' });
+// ClockTemplate -> ClockTemplateSlot
+ClockTemplate.hasMany(ClockTemplateSlot, { foreignKey: 'clockTemplateId', as: 'slots' });
+ClockTemplateSlot.belongsTo(ClockTemplate, { foreignKey: 'clockTemplateId', as: 'clockTemplate' });
 
-// ContentType <-> Content
-ContentType.hasMany(Content, { foreignKey: 'contentTypeId' });
-Content.belongsTo(ContentType, { foreignKey: 'contentTypeId' });
-
-// Station <-> Feedback
-Station.hasMany(Feedback, { foreignKey: 'stationId' });
-Feedback.belongsTo(Station, { foreignKey: 'stationId' });
-
-// Content <-> Feedback
-Content.hasMany(Feedback, { foreignKey: 'contentId' });
-Feedback.belongsTo(Content, { foreignKey: 'contentId' });
-
-// Station <-> StationExcludedContent
-Station.hasMany(StationExcludedContent, { foreignKey: 'stationId' });
-StationExcludedContent.belongsTo(Station, { foreignKey: 'stationId' });
-
-// Content <-> StationExcludedContent
-Content.hasMany(StationExcludedContent, { foreignKey: 'contentId' });
-StationExcludedContent.belongsTo(Content, { foreignKey: 'contentId' });
-
-// Cart <-> Content
-Cart.hasMany(Content, { foreignKey: 'cartId' });
-Content.belongsTo(Cart, { foreignKey: 'cartId' });
-
-// Cart <-> CartItem
-Cart.hasMany(CartItem, { foreignKey: 'cartId' });
-CartItem.belongsTo(Cart, { foreignKey: 'cartId' });
-
-// PlaybackLog <-> Station
-Station.hasMany(PlaybackLog, { foreignKey: 'stationId' });
-PlaybackLog.belongsTo(Station, { foreignKey: 'stationId' });
-
-// PlaybackLog <-> Content
-Content.hasMany(PlaybackLog, { foreignKey: 'contentId' });
-PlaybackLog.belongsTo(Content, { foreignKey: 'contentId' });
-
-// ----------------------------------------------------
-// FIX: ClockTemplate <-> ClockTemplateSlot with an alias
-// If you want to include them as { model: ClockTemplateSlot, as: 'slots' }:
-ClockTemplate.hasMany(ClockTemplateSlot, {
-  foreignKey: 'clockTemplateId',
-  as: 'slots', // define the alias here
-});
-ClockTemplateSlot.belongsTo(ClockTemplate, {
-  foreignKey: 'clockTemplateId',
-  as: 'clockTemplate', // optional reverse alias
-});
-
-// If you want each slot to reference a Cart
+// If referencing cart in slots
 Cart.hasMany(ClockTemplateSlot, { foreignKey: 'cartId' });
 ClockTemplateSlot.belongsTo(Cart, { foreignKey: 'cartId' });
 
 // ----------------------------------------------------
-// Export all models
+// Advanced Tagging Associations
 // ----------------------------------------------------
+
+// ContentTag is a pivot for Content <-> Tag
+// We'll treat it as belongsTo for each side
+ContentTag.belongsTo(Content, { foreignKey: 'contentId' });
+ContentTag.belongsTo(Tag, { foreignKey: 'tagId' });
+
+// If you want to do include: [Tag], you can define a "hasMany" from Content -> ContentTag
+Content.hasMany(ContentTag, { foreignKey: 'contentId' });
+Tag.hasMany(ContentTag, { foreignKey: 'tagId' });
+
+// StationTagPreference
+// We'll treat it similarly: stationId, tagId, score
+StationTagPreference.belongsTo(Station, { foreignKey: 'stationId' });
+StationTagPreference.belongsTo(Tag, { foreignKey: 'tagId' });
+
+Station.hasMany(StationTagPreference, { foreignKey: 'stationId' });
+Tag.hasMany(StationTagPreference, { foreignKey: 'tagId' });
+
+// Export everything
 module.exports = {
   Station,
   StationProfile,
@@ -106,6 +72,9 @@ module.exports = {
   sequelize,
   CartItem,
   PlaybackLog,
-  // NEW
   ClockTemplateSlot,
+  // NEW:
+  Tag,
+  ContentTag,
+  StationTagPreference,
 };

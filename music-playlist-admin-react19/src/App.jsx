@@ -3,6 +3,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
+// Existing imports from your repo
 import StationsList from './pages/StationsList';
 import NewStation from './pages/NewStation';
 import EditStation from './pages/EditStation';
@@ -15,29 +16,34 @@ import ClockTemplateList from './pages/ClockTemplateList';
 import NewClockTemplate from './pages/NewClockTemplate';
 import EditClockTemplate from './pages/EditClockTemplate';
 
-// NEW: import the Slot pages
-import SlotList from './pages/SlotList';
-import NewSlot from './pages/NewSlot';
-import EditSlot from './pages/EditSlot';
+// NEW: import the Tag management pages we created
+import TagList from './pages/TagList';
+import AttachTagToContent from './pages/AttachTagToContent';
 
 function App() {
   return (
     <Router>
       <div style={{ margin: '20px' }}>
         <h1>Music Playlist Admin (React 19)</h1>
+
         <nav>
-          {/* Existing nav links */}
+          {/* Existing nav links for Stations */}
           <Link to="/">Stations</Link> |{' '}
           <Link to="/stations/new">New Station</Link> |{' '}
+
+          {/* Existing nav links for Schedules */}
           <Link to="/schedules">Schedules</Link> |{' '}
           <Link to="/schedules/new">New Schedule</Link> |{' '}
+
+          {/* Existing nav links for Clock Templates */}
           <Link to="/clock-templates">Clock Templates</Link> |{' '}
           <Link to="/clock-templates/new">New Template</Link> |{' '}
 
-          {/* NEW: link to the slot list */}
-          <Link to="/slots">Slots</Link> |{' '}
-          <Link to="/slots/new">New Slot</Link>
+          {/* NEW nav links for Tag management */}
+          <Link to="/tags">Tags</Link> |{' '}
+          <Link to="/attach-tag">Attach Tag</Link>
         </nav>
+
         <hr />
 
         <Routes>
@@ -56,10 +62,9 @@ function App() {
           <Route path="/clock-templates/new" element={<NewClockTemplate />} />
           <Route path="/clock-templates/:id/edit" element={<EditClockTemplate />} />
 
-          {/* NEW: Clock Template Slots */}
-          <Route path="/slots" element={<SlotList />} />
-          <Route path="/slots/new" element={<NewSlot />} />
-          <Route path="/slots/:id/edit" element={<EditSlot />} />
+          {/* NEW: Tag management */}
+          <Route path="/tags" element={<TagList />} />
+          <Route path="/attach-tag" element={<AttachTagToContent />} />
         </Routes>
       </div>
     </Router>

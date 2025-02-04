@@ -20,6 +20,8 @@ const { Op } = require('sequelize');
 // import the clockTemplateSlot router
 const clockTemplateSlotRoutes = require('./clockTemplateSlot');
 
+const tagRoutes = require('./tag');
+
 // --------------- MOUNT SUB-ROUTES ----------------
 router.use('/stations', stationRoutes);
 router.use('/station-profiles', stationProfileRoutes);
@@ -30,6 +32,8 @@ router.use('/content-types', contentTypeRoutes);
 
 // Clock Template Slot routes
 router.use('/clock-template-slots', clockTemplateSlotRoutes);
+
+router.use('/tags', tagRoutes);
 
 // --------------- PLAYLIST GENERATION --------------
 router.post('/generate-playlist', async (req, res) => {
