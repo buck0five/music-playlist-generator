@@ -22,6 +22,9 @@ const clockTemplateSlotRoutes = require('./clockTemplateSlot');
 
 const tagRoutes = require('./tag');
 
+// import contentCrud
+const contentCrudRoutes = require('./contentCrud');
+
 // --------------- MOUNT SUB-ROUTES ----------------
 router.use('/stations', stationRoutes);
 router.use('/station-profiles', stationProfileRoutes);
@@ -34,6 +37,8 @@ router.use('/content-types', contentTypeRoutes);
 router.use('/clock-template-slots', clockTemplateSlotRoutes);
 
 router.use('/tags', tagRoutes);
+
+router.use('/content', contentCrudRoutes);
 
 // --------------- PLAYLIST GENERATION --------------
 router.post('/generate-playlist', async (req, res) => {

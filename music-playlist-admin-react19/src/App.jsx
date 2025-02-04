@@ -1,9 +1,7 @@
 // src/App.jsx
-
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
-// Existing imports from your repo
 import StationsList from './pages/StationsList';
 import NewStation from './pages/NewStation';
 import EditStation from './pages/EditStation';
@@ -16,34 +14,41 @@ import ClockTemplateList from './pages/ClockTemplateList';
 import NewClockTemplate from './pages/NewClockTemplate';
 import EditClockTemplate from './pages/EditClockTemplate';
 
-// NEW: import the Tag management pages we created
+// Tag features
 import TagList from './pages/TagList';
 import AttachTagToContent from './pages/AttachTagToContent';
+
+// Content features
+import ContentList from './pages/ContentList';
+import NewContent from './pages/NewContent';
+import EditContent from './pages/EditContent';
 
 function App() {
   return (
     <Router>
       <div style={{ margin: '20px' }}>
         <h1>Music Playlist Admin (React 19)</h1>
-
         <nav>
-          {/* Existing nav links for Stations */}
+          {/* Stations */}
           <Link to="/">Stations</Link> |{' '}
           <Link to="/stations/new">New Station</Link> |{' '}
 
-          {/* Existing nav links for Schedules */}
+          {/* Schedules */}
           <Link to="/schedules">Schedules</Link> |{' '}
           <Link to="/schedules/new">New Schedule</Link> |{' '}
 
-          {/* Existing nav links for Clock Templates */}
+          {/* Clock Templates */}
           <Link to="/clock-templates">Clock Templates</Link> |{' '}
           <Link to="/clock-templates/new">New Template</Link> |{' '}
 
-          {/* NEW nav links for Tag management */}
+          {/* Tag mgmt */}
           <Link to="/tags">Tags</Link> |{' '}
-          <Link to="/attach-tag">Attach Tag</Link>
-        </nav>
+          <Link to="/attach-tag">Attach Tag</Link> |{' '}
 
+          {/* Content mgmt */}
+          <Link to="/content">Content</Link> |{' '}
+          <Link to="/content/new">New Content</Link>
+        </nav>
         <hr />
 
         <Routes>
@@ -62,9 +67,14 @@ function App() {
           <Route path="/clock-templates/new" element={<NewClockTemplate />} />
           <Route path="/clock-templates/:id/edit" element={<EditClockTemplate />} />
 
-          {/* NEW: Tag management */}
+          {/* Tag mgmt */}
           <Route path="/tags" element={<TagList />} />
           <Route path="/attach-tag" element={<AttachTagToContent />} />
+
+          {/* Content mgmt */}
+          <Route path="/content" element={<ContentList />} />
+          <Route path="/content/new" element={<NewContent />} />
+          <Route path="/content/:id/edit" element={<EditContent />} />
         </Routes>
       </div>
     </Router>
