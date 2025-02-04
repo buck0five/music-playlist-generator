@@ -3,18 +3,20 @@ const express = require('express');
 const router = express.Router();
 const { ClockTemplateSlot } = require('../models');
 
-// GET /api/clock-template-slots?clockTemplateId=...
+// GET /api/clock-template-slots?clockTemplateId=3
 router.get('/', async (req, res) => {
   try {
     const { clockTemplateId } = req.query;
     const whereClause = {};
+
     if (clockTemplateId) {
       whereClause.clockTemplateId = clockTemplateId;
     }
+
     const slots = await ClockTemplateSlot.findAll({ where: whereClause });
     res.json(slots);
   } catch (err) {
-    console.error('Error fetching template slots:', err);
+    console.error('Error fetching clock template slots:', err);
     res.status(500).json({ error: 'Server error fetching slots.' });
   }
 });
@@ -23,6 +25,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { clockTemplateId, slotType, minuteOffset, cartId } = req.body;
+
     const newSlot = await ClockTemplateSlot.create({
       clockTemplateId,
       slotType,
@@ -57,7 +60,8 @@ router.put('/:id', async (req, res) => {
     if (!slot) {
       return res.status(404).json({ error: 'Slot not found.' });
     }
-    const { slotType, minuteOffset, cartId } = req.body;
+    const { clockTemplateId, slotType, minuteOffset, cartId } = req.body;
+    if (clockTemplateId !== undefined) slot.clockTemplateId = clockTemplateId;
     if (slotType !== undefined) slot.slotType = slotType;
     if (minuteOffset !== undefined) slot.minuteOffset = minuteOffset;
     if (cartId !== undefined) slot.cartId = cartId;

@@ -17,6 +17,9 @@ const { Feedback, StationExcludedContent, PlaybackLog, Content, Station } = requ
 const { generatePlaylistForStation } = require('../generatePlaylist');
 const { Op } = require('sequelize');
 
+// import the clockTemplateSlot router
+const clockTemplateSlotRoutes = require('./clockTemplateSlot');
+
 // --------------- MOUNT SUB-ROUTES ----------------
 router.use('/stations', stationRoutes);
 router.use('/station-profiles', stationProfileRoutes);
@@ -24,6 +27,9 @@ router.use('/station-schedules', stationScheduleRoutes);
 router.use('/clock-templates', clockTemplateRoutes);
 router.use('/carts', cartRoutes);
 router.use('/content-types', contentTypeRoutes);
+
+// Clock Template Slot routes
+router.use('/clock-template-slots', clockTemplateSlotRoutes);
 
 // --------------- PLAYLIST GENERATION --------------
 router.post('/generate-playlist', async (req, res) => {

@@ -1,90 +1,111 @@
 // models/index.js
-const sequelize = require('../config/database');
 
-// Import all models
+const Station = require('./Station');
+const StationProfile = require('./StationProfile');
+const StationSchedule = require('./StationSchedule');
 const Format = require('./Format');
 const Content = require('./Content');
 const Feedback = require('./Feedback');
-const ContentType = require('./ContentType');
-const Station = require('./Station');
-const StationProfile = require('./StationProfile');
-const ClockTemplate = require('./ClockTemplate');
-const ClockTemplateSlot = require('./ClockTemplateSlot');
-const Cart = require('./Cart');
-const CartItem = require('./CartItem');
-const StationSchedule = require('./StationSchedule');
 const StationExcludedContent = require('./StationExcludedContent');
+const ClockTemplate = require('./ClockTemplate');
+const Cart = require('./Cart');
+const ContentType = require('./ContentType');
+const sequelize = require('../config/database');
+const path = require('path');
+const fs = require('fs');
+
+// Already in your repo:
+const CartItem = require('./CartItem');
 const PlaybackLog = require('./PlaybackLog');
 
-// ------------- DEFINE ASSOCIATIONS -------------- //
+// NEW model for slot-based scheduling:
+const ClockTemplateSlot = require('./ClockTemplateSlot');
 
-// (A) Format <-> Content
-Format.hasMany(Content, { foreignKey: 'formatId', as: 'contents' });
-Content.belongsTo(Format, { foreignKey: 'formatId', as: 'format' });
+// ----------------------------------------------------
+// Associations
+// ----------------------------------------------------
 
-// (B) ContentType <-> Content
-ContentType.hasMany(Content, { foreignKey: 'contentTypeId', as: 'contentsOfType' });
-Content.belongsTo(ContentType, { foreignKey: 'contentTypeId', as: 'contentTypeDef' });
+// Station <-> StationProfile
+Station.hasMany(StationProfile, { foreignKey: 'stationId' });
+StationProfile.belongsTo(Station, { foreignKey: 'stationId' });
 
-// (C) Content <-> Feedback
-Content.hasMany(Feedback, { foreignKey: 'contentId', as: 'feedbackEntries' });
-Feedback.belongsTo(Content, { foreignKey: 'contentId', as: 'content' });
+// Station <-> StationSchedule
+Station.hasMany(StationSchedule, { foreignKey: 'stationId' });
+StationSchedule.belongsTo(Station, { foreignKey: 'stationId' });
 
-// (D) Station <-> StationProfile (One-to-One)
-Station.hasOne(StationProfile, { foreignKey: 'stationId', as: 'profile' });
-StationProfile.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
+// Format <-> Content
+Format.hasMany(Content, { foreignKey: 'formatId' });
+Content.belongsTo(Format, { foreignKey: 'formatId' });
 
-// (E) ClockTemplate <-> ClockTemplateSlot
+// ContentType <-> Content
+ContentType.hasMany(Content, { foreignKey: 'contentTypeId' });
+Content.belongsTo(ContentType, { foreignKey: 'contentTypeId' });
+
+// Station <-> Feedback
+Station.hasMany(Feedback, { foreignKey: 'stationId' });
+Feedback.belongsTo(Station, { foreignKey: 'stationId' });
+
+// Content <-> Feedback
+Content.hasMany(Feedback, { foreignKey: 'contentId' });
+Feedback.belongsTo(Content, { foreignKey: 'contentId' });
+
+// Station <-> StationExcludedContent
+Station.hasMany(StationExcludedContent, { foreignKey: 'stationId' });
+StationExcludedContent.belongsTo(Station, { foreignKey: 'stationId' });
+
+// Content <-> StationExcludedContent
+Content.hasMany(StationExcludedContent, { foreignKey: 'contentId' });
+StationExcludedContent.belongsTo(Content, { foreignKey: 'contentId' });
+
+// Cart <-> Content
+Cart.hasMany(Content, { foreignKey: 'cartId' });
+Content.belongsTo(Cart, { foreignKey: 'cartId' });
+
+// Cart <-> CartItem
+Cart.hasMany(CartItem, { foreignKey: 'cartId' });
+CartItem.belongsTo(Cart, { foreignKey: 'cartId' });
+
+// PlaybackLog <-> Station
+Station.hasMany(PlaybackLog, { foreignKey: 'stationId' });
+PlaybackLog.belongsTo(Station, { foreignKey: 'stationId' });
+
+// PlaybackLog <-> Content
+Content.hasMany(PlaybackLog, { foreignKey: 'contentId' });
+PlaybackLog.belongsTo(Content, { foreignKey: 'contentId' });
+
+// ----------------------------------------------------
+// FIX: ClockTemplate <-> ClockTemplateSlot with an alias
+// If you want to include them as { model: ClockTemplateSlot, as: 'slots' }:
 ClockTemplate.hasMany(ClockTemplateSlot, {
   foreignKey: 'clockTemplateId',
-  as: 'slots',
+  as: 'slots', // define the alias here
 });
 ClockTemplateSlot.belongsTo(ClockTemplate, {
   foreignKey: 'clockTemplateId',
-  as: 'clockTemplate',
+  as: 'clockTemplate', // optional reverse alias
 });
 
-// (F) Cart <-> CartItem (One-to-Many)
-Cart.hasMany(CartItem, { foreignKey: 'cartId', as: 'cartItems' });
-CartItem.belongsTo(Cart, { foreignKey: 'cartId', as: 'cart' });
+// If you want each slot to reference a Cart
+Cart.hasMany(ClockTemplateSlot, { foreignKey: 'cartId' });
+ClockTemplateSlot.belongsTo(Cart, { foreignKey: 'cartId' });
 
-// (G) Content <-> CartItem (One-to-Many)
-Content.hasMany(CartItem, { foreignKey: 'contentId', as: 'cartItems' });
-CartItem.belongsTo(Content, { foreignKey: 'contentId', as: 'content' });
-
-// (H) Station <-> StationSchedule (One-to-Many, for day-of-week scheduling)
-Station.hasMany(StationSchedule, { foreignKey: 'stationId', as: 'schedules' });
-StationSchedule.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
-
-// (I) ClockTemplate <-> StationSchedule (One-to-Many)
-ClockTemplate.hasMany(StationSchedule, { foreignKey: 'clockTemplateId', as: 'usedBySchedules' });
-StationSchedule.belongsTo(ClockTemplate, { foreignKey: 'clockTemplateId', as: 'clockTemplate' });
-
-// (J) StationExcludedContent (no direct association needed, but we can do station hasMany if you want)
-StationExcludedContent.belongsTo(Station, { foreignKey: 'stationId' });
-StationExcludedContent.belongsTo(Content, { foreignKey: 'contentId' });
-
-// (K) PlaybackLog <-> Content <-> Station
-PlaybackLog.belongsTo(Content, { foreignKey: 'contentId', as: 'content' });
-Content.hasMany(PlaybackLog, { foreignKey: 'contentId', as: 'playbackLogs' });
-
-PlaybackLog.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
-Station.hasMany(PlaybackLog, { foreignKey: 'stationId', as: 'playbackLogs' });
-
-// -------------- EXPORT ALL MODELS + SEQUELIZE -------------
+// ----------------------------------------------------
+// Export all models
+// ----------------------------------------------------
 module.exports = {
-  sequelize,
+  Station,
+  StationProfile,
+  StationSchedule,
   Format,
   Content,
   Feedback,
-  ContentType,
-  Station,
-  StationProfile,
-  ClockTemplate,
-  ClockTemplateSlot,
-  Cart,
-  CartItem,
-  StationSchedule,
   StationExcludedContent,
+  ClockTemplate,
+  Cart,
+  ContentType,
+  sequelize,
+  CartItem,
   PlaybackLog,
+  // NEW
+  ClockTemplateSlot,
 };

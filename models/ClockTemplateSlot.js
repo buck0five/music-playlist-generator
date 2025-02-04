@@ -11,17 +11,17 @@ ClockTemplateSlot.init(
       allowNull: false,
     },
     slotType: {
-      type: DataTypes.STRING, // e.g. "music", "adCart", "jingle", "topHour"
+      type: DataTypes.STRING,  // e.g. "music", "adCart", "jingle", "topHour"
       allowNull: false,
     },
     minuteOffset: {
-      type: DataTypes.INTEGER, // e.g. 0..59
+      type: DataTypes.INTEGER, // 0..59
       allowNull: false,
       defaultValue: 0,
     },
     cartId: {
-      type: DataTypes.INTEGER,
-      allowNull: true, // if only some slots need a cart
+      type: DataTypes.INTEGER, // references the Cart table if you have one
+      allowNull: true,
     },
   },
   {
