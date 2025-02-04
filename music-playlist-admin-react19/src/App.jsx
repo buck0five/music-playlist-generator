@@ -1,24 +1,31 @@
 // src/App.jsx
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
+// Existing imports for Stations
 import StationsList from './pages/StationsList';
 import NewStation from './pages/NewStation';
 import EditStation from './pages/EditStation';
 
+// Existing imports for Schedules
 import SchedulesList from './pages/SchedulesList';
 import NewSchedule from './pages/NewSchedule';
 import EditSchedule from './pages/EditSchedule';
 
+// Existing imports for Clock Templates (basic list/edit)
 import ClockTemplateList from './pages/ClockTemplateList';
 import NewClockTemplate from './pages/NewClockTemplate';
 import EditClockTemplate from './pages/EditClockTemplate';
 
-// Tag features
+// NEW: Drag-and-drop Clock Template Editor
+import ClockTemplateEditorDnd from './pages/ClockTemplateEditorDnd';
+
+// Tag Management
 import TagList from './pages/TagList';
 import AttachTagToContent from './pages/AttachTagToContent';
 
-// Content features
+// Content Management
 import ContentList from './pages/ContentList';
 import NewContent from './pages/NewContent';
 import EditContent from './pages/EditContent';
@@ -49,6 +56,7 @@ function App() {
           <Link to="/content">Content</Link> |{' '}
           <Link to="/content/new">New Content</Link>
         </nav>
+
         <hr />
 
         <Routes>
@@ -66,6 +74,9 @@ function App() {
           <Route path="/clock-templates" element={<ClockTemplateList />} />
           <Route path="/clock-templates/new" element={<NewClockTemplate />} />
           <Route path="/clock-templates/:id/edit" element={<EditClockTemplate />} />
+
+          {/* NEW: Drag-and-drop clock template editor */}
+          <Route path="/clock-templates/:id/dnd" element={<ClockTemplateEditorDnd />} />
 
           {/* Tag mgmt */}
           <Route path="/tags" element={<TagList />} />
