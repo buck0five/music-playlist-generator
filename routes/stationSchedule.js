@@ -2,9 +2,8 @@
 const express = require('express');
 const router = express.Router();
 const { StationSchedule } = require('../models');
-const { Op } = require('sequelize');
 
-// GET /api/station-schedules
+// GET /api/station-schedules?stationId=... (optional)
 router.get('/', async (req, res) => {
   try {
     const { stationId } = req.query;
@@ -23,11 +22,13 @@ router.get('/', async (req, res) => {
 // POST /api/station-schedules
 router.post('/', async (req, res) => {
   try {
+    // Now we expect startHour, endHour, dayOfWeek
     const { stationId, clockTemplateId, dayOfWeek, startHour, endHour } = req.body;
+
     const newSchedule = await StationSchedule.create({
       stationId,
       clockTemplateId,
-      dayOfWeek,
+      dayOfWeek: dayOfWeek !== undefined ? dayOfWeek : null,
       startHour,
       endHour,
     });

@@ -21,25 +21,25 @@ function SchedulesList() {
       });
   }, [refreshKey]);
 
-  const handleDelete = (id) => {
-    axios
-      .delete(`http://173.230.134.186:5000/api/station-schedules/${id}`)
-      .then((res) => {
-        console.log('Deleted schedule:', res.data);
-        setRefreshKey((prev) => prev + 1); // re-fetch
-      })
-      .catch((err) => {
-        setError('Error deleting schedule');
-        console.error(err);
-      });
-  };
-
   const goToNew = () => {
     navigate('/schedules/new');
   };
 
   const goToEdit = (id) => {
     navigate(`/schedules/${id}/edit`);
+  };
+
+  const handleDelete = (id) => {
+    axios
+      .delete(`http://173.230.134.186:5000/api/station-schedules/${id}`)
+      .then((res) => {
+        console.log('Deleted schedule:', res.data);
+        setRefreshKey((prev) => prev + 1);
+      })
+      .catch((err) => {
+        setError('Error deleting schedule');
+        console.error(err);
+      });
   };
 
   return (
@@ -58,7 +58,7 @@ function SchedulesList() {
               <th>ID</th>
               <th>Station ID</th>
               <th>Clock Template ID</th>
-              <th>Day Of Week</th>
+              <th>Day of Week</th>
               <th>Start Hour</th>
               <th>End Hour</th>
               <th>Actions</th>
@@ -70,7 +70,7 @@ function SchedulesList() {
                 <td>{sch.id}</td>
                 <td>{sch.stationId}</td>
                 <td>{sch.clockTemplateId}</td>
-                <td>{sch.dayOfWeek}</td>
+                <td>{sch.dayOfWeek ?? 'Any'}</td>
                 <td>{sch.startHour}</td>
                 <td>{sch.endHour}</td>
                 <td>

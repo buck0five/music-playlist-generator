@@ -14,22 +14,22 @@ StationSchedule.init(
       type: DataTypes.INTEGER,
       allowNull: false,
     },
+    // dayOfWeek: integer 0=Sunday..6=Saturday, or use a string
+    dayOfWeek: {
+      type: DataTypes.INTEGER,
+      allowNull: true, // optional if you want daily schedules
+    },
+    // Start time-of-day in 24-hour format (0..23)
     startHour: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 0,
     },
+    // End time-of-day in 24-hour format (0..23)
     endHour: {
       type: DataTypes.INTEGER,
       allowNull: false,
       defaultValue: 23,
-    },
-    // New: dayOfWeek 0=Sunday,1=Monday,...6=Saturday
-    // If null => applies to all days
-    dayOfWeek: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      defaultValue: null,
     },
   },
   {

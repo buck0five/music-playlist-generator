@@ -20,11 +20,15 @@ function EditSchedule() {
       .get(`http://173.230.134.186:5000/api/station-schedules/${id}`)
       .then((res) => {
         const sch = res.data;
-        setStationId(sch.stationId || '');
-        setClockTemplateId(sch.clockTemplateId || '');
-        setDayOfWeek(sch.dayOfWeek || '');
-        setStartHour(sch.startHour || '');
-        setEndHour(sch.endHour || '');
+        setStationId(sch.stationId?.toString() || '');
+        setClockTemplateId(sch.clockTemplateId?.toString() || '');
+        setDayOfWeek(
+          sch.dayOfWeek !== null && sch.dayOfWeek !== undefined
+            ? sch.dayOfWeek.toString()
+            : ''
+        );
+        setStartHour(sch.startHour?.toString() || '');
+        setEndHour(sch.endHour?.toString() || '');
         setLoading(false);
       })
       .catch((err) => {
@@ -38,11 +42,12 @@ function EditSchedule() {
     e.preventDefault();
 
     const payload = {
-      stationId: parseInt(stationId, 10),
-      clockTemplateId: parseInt(clockTemplateId, 10),
-      dayOfWeek: parseInt(dayOfWeek, 10),
-      startHour: parseInt(startHour, 10),
-      endHour: parseInt(endHour, 10),
+      stationId: stationId !== '' ? parseInt(stationId, 10) : undefined,
+      clockTemplateId:
+        clockTemplateId !== '' ? parseInt(clockTemplateId, 10) : undefined,
+      dayOfWeek: dayOfWeek !== '' ? parseInt(dayOfWeek, 10) : null,
+      startHour: startHour !== '' ? parseInt(startHour, 10) : undefined,
+      endHour: endHour !== '' ? parseInt(endHour, 10) : undefined,
     };
 
     axios
@@ -65,7 +70,6 @@ function EditSchedule() {
     <div>
       <h2>Edit Schedule (ID: {id})</h2>
       {error && <p style={{ color: 'red' }}>{error}</p>}
-
       <form onSubmit={handleSubmit}>
         <div>
           <label>Station ID: </label>
@@ -86,30 +90,27 @@ function EditSchedule() {
           />
         </div>
         <div>
-          <label>Day Of Week (0..6): </label>
+          <label>Day of Week (0..6, blank=any): </label>
           <input
             type="number"
             value={dayOfWeek}
             onChange={(e) => setDayOfWeek(e.target.value)}
-            required
           />
         </div>
         <div>
-          <label>Start Hour: </label>
+          <label>Start Hour (0..23): </label>
           <input
             type="number"
             value={startHour}
             onChange={(e) => setStartHour(e.target.value)}
-            required
           />
         </div>
         <div>
-          <label>End Hour: </label>
+          <label>End Hour (0..23): </label>
           <input
             type="number"
             value={endHour}
             onChange={(e) => setEndHour(e.target.value)}
-            required
           />
         </div>
         <button type="submit">Save Changes</button>
