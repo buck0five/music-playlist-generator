@@ -1,12 +1,21 @@
 // routes/cartCrudRoutes.js
+
 const express = require('express');
 const router = express.Router();
-const { Cart, CartItem, Content } = require('../models');
+const { Cart, CartItem, Content, Station } = require('../models');
 
-// GET /api/carts -> list all carts
+// GET /api/carts -> list all carts (optionally filter by station)
 router.get('/', async (req, res) => {
   try {
-    const carts = await Cart.findAll();
+    const stationId = req.query.stationId;
+    const whereClause = {};
+    if (stationId) {
+      whereClause.stationId = stationId;
+    }
+    const carts = await Cart.findAll({
+      where: whereClause,
+      include: [Station], // if you want station info
+    });
     res.json(carts);
   } catch (err) {
     console.error('Error fetching carts:', err);
@@ -15,13 +24,28 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/carts -> create a new cart
+// body: { name, category, stationId }
 router.post('/', async (req, res) => {
   try {
-    const { name } = req.body;
+    const { name, category, stationId } = req.body;
     if (!name) {
-      return res.status(400).json({ error: 'Cart "name" is required.' });
+      return res.status(400).json({ error: 'Cart name is required.' });
     }
-    const newCart = await Cart.create({ name });
+    if (!stationId) {
+      return res.status(400).json({ error: 'stationId is required for cart.' });
+    }
+
+    // optional check: confirm station exists
+    const station = await Station.findByPk(stationId);
+    if (!station) {
+      return res.status(404).json({ error: 'Station not found for stationId.' });
+    }
+
+    const newCart = await Cart.create({
+      name,
+      category,
+      stationId,
+    });
     res.json(newCart);
   } catch (err) {
     console.error('Error creating cart:', err);
@@ -33,15 +57,13 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const cartId = req.params.id;
-    const cart = await Cart.findByPk(cartId);
+    const cart = await Cart.findByPk(cartId, { include: [Station] });
     if (!cart) {
       return res.status(404).json({ error: 'Cart not found.' });
     }
 
-    // fetch pivot entries
     const cartItems = await CartItem.findAll({
       where: { cartId },
-      // must match "as: 'Content'"
       include: [{ model: Content, as: 'Content' }],
     });
 
@@ -52,17 +74,29 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/carts/:id -> update cart name
+// PUT /api/carts/:id -> update cart name, category, or stationId
 router.put('/:id', async (req, res) => {
   try {
     const cartId = req.params.id;
-    const { name } = req.body;
+    const { name, category, stationId } = req.body;
     const cart = await Cart.findByPk(cartId);
-    if (!cart) return res.status(404).json({ error: 'Cart not found.' });
-
-    if (name !== undefined) {
-      cart.name = name;
+    if (!cart) {
+      return res.status(404).json({ error: 'Cart not found.' });
     }
+
+    if (name !== undefined) cart.name = name;
+    if (category !== undefined) cart.category = category;
+    if (stationId !== undefined) {
+      // optional check if station exists
+      const station = await Station.findByPk(stationId);
+      if (!station) {
+        return res
+          .status(404)
+          .json({ error: 'Station not found for new stationId.' });
+      }
+      cart.stationId = stationId;
+    }
+
     await cart.save();
     res.json(cart);
   } catch (err) {
@@ -71,7 +105,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/carts/:id -> remove the cart entirely
+// DELETE /api/carts/:id -> remove the cart
 router.delete('/:id', async (req, res) => {
   try {
     const cartId = req.params.id;
@@ -94,7 +128,7 @@ router.post('/:id/add-content', async (req, res) => {
     if (!contentId) {
       return res
         .status(400)
-        .json({ error: 'contentId is required to add content to the cart.' });
+        .json({ error: 'contentId is required to add content.' });
     }
 
     const cart = await Cart.findByPk(cartId);
@@ -111,8 +145,7 @@ router.post('/:id/add-content', async (req, res) => {
   }
 });
 
-// DELETE /api/carts/:id/remove-content/:contentId
-// -> remove that content from the cart pivot
+// DELETE /api/carts/:id/remove-content/:contentId -> remove pivot row
 router.delete('/:id/remove-content/:contentId', async (req, res) => {
   try {
     const { id: cartId, contentId } = req.params;

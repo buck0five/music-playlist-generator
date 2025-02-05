@@ -1,5 +1,3 @@
-// src/pages/EditCart.jsx
-
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -11,6 +9,8 @@ function EditCart() {
   const [cart, setCart] = useState(null);
   const [items, setItems] = useState([]);
   const [cartName, setCartName] = useState('');
+  const [category, setCategory] = useState('');
+  const [stationId, setStationId] = useState('');
   const [contentId, setContentId] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
@@ -24,6 +24,8 @@ function EditCart() {
         setCart(cart);
         setItems(items || []);
         setCartName(cart.name);
+        setCategory(cart.category || '');
+        setStationId(cart.stationId || '');
         setLoading(false);
       })
       .catch((err) => {
@@ -35,12 +37,16 @@ function EditCart() {
 
   const handleRename = () => {
     axios
-      .put(`http://173.230.134.186:5000/api/carts/${id}`, { name: cartName })
+      .put(`http://173.230.134.186:5000/api/carts/${id}`, {
+        name: cartName,
+        category,
+        stationId: parseInt(stationId, 10),
+      })
       .then(() => {
         setRefreshKey((prev) => prev + 1);
       })
       .catch((err) => {
-        setError('Error renaming cart');
+        setError('Error updating cart');
         console.error(err);
       });
   };
@@ -73,7 +79,7 @@ function EditCart() {
         setRefreshKey((prev) => prev + 1);
       })
       .catch((err) => {
-        setError('Error removing content from cart');
+        setError('Error removing content');
         console.error(err);
       });
   };
@@ -95,7 +101,25 @@ function EditCart() {
           onChange={(e) => setCartName(e.target.value)}
           style={{ marginRight: '0.5rem' }}
         />
-        <button onClick={handleRename}>Rename</button>
+
+        <label>Category: </label>
+        <input
+          type="text"
+          placeholder="VEN1, NET1, etc."
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          style={{ marginRight: '0.5rem' }}
+        />
+
+        <label>Station ID: </label>
+        <input
+          type="number"
+          value={stationId}
+          onChange={(e) => setStationId(e.target.value)}
+          style={{ marginRight: '0.5rem', width: '70px' }}
+        />
+
+        <button onClick={handleRename}>Update</button>
       </div>
 
       <h3>Cart Items</h3>
@@ -105,7 +129,7 @@ function EditCart() {
           type="number"
           value={contentId}
           onChange={(e) => setContentId(e.target.value)}
-          style={{ marginRight: '0.5rem' }}
+          style={{ marginRight: '0.5rem', width: '70px' }}
         />
         <button onClick={handleAddContent}>Add</button>
       </div>
@@ -120,7 +144,7 @@ function EditCart() {
           <thead>
             <tr>
               <th>contentId</th>
-              <th>Title (if known)</th>
+              <th>Title</th>
               <th>Type</th>
               <th>Actions</th>
             </tr>

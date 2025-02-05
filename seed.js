@@ -1,120 +1,120 @@
 // seed.js
-const {
-  sequelize,
-  Format,
-  Content,
-  ContentType,
+
+const { 
+  sequelize, 
   Station,
   StationProfile,
+  StationSchedule,
+  Format,
+  Content,
+  Feedback,
+  StationExcludedContent,
   ClockTemplate,
   ClockTemplateSlot,
+  ContentType,
+  Tag,
+  ContentTag,
+  StationTagPreference,
+  PlaybackLog,
   Cart,
   CartItem,
-  StationSchedule,
-  StationExcludedContent,
 } = require('./models');
 
 async function seed() {
   try {
+    // 1) Force a fresh sync, removing all old tables/data
     await sequelize.sync({ force: true });
 
-    // 1. Create a Format
-    const rockFormat = await Format.create({ name: 'Rock' });
-
-    // 2. ContentTypes: Song, Ad
-    const songType = await ContentType.create({ name: 'Song' });
-    const adType = await ContentType.create({ name: 'Ad' });
-
-    // 3. Create some Content
-    const song1 = await Content.create({
-      title: 'Rock Anthem 1',
-      contentType: 'song',
-      fileName: 'rock_anthem_1.mp3',
-      formatId: rockFormat.id,
-      contentTypeId: songType.id,
-      duration: 180,
-      dailyStartHour: 6, // example: only valid from 6 AM
-      dailyEndHour: 22,  // to 10 PM
-    });
-
-    const song2 = await Content.create({
-      title: 'Rock Anthem 2',
-      contentType: 'song',
-      fileName: 'rock_anthem_2.mp3',
-      formatId: rockFormat.id,
-      contentTypeId: songType.id,
-      duration: 200,
-      // no daily hour restriction
-    });
-
-    const ad1 = await Content.create({
-      title: 'Car Dealership Ad',
-      contentType: 'ad',
-      fileName: 'car_dealership_ad.mp3',
-      contentTypeId: adType.id,
-      duration: 30,
-      // Suppose it expires at end of year
-      endDate: new Date('2025-12-31T23:59:59.999Z'),
-    });
-
-    // 4. Create a Cart for ads
-    const adCart = await Cart.create({ cartName: 'Ad Cart', cartType: 'advertising' });
-    await CartItem.create({
-      cartId: adCart.id,
-      contentId: ad1.id,
-    });
-
-    // 5. Create two clock templates
-    const sundayTemplate = await ClockTemplate.create({
-      templateName: 'Sunday Template',
-      description: 'All songs, no ads',
-    });
-    await ClockTemplateSlot.bulkCreate([
-      { clockTemplateId: sundayTemplate.id, minuteOffset: 0, slotType: 'song' },
-      { clockTemplateId: sundayTemplate.id, minuteOffset: 15, slotType: 'song' },
-    ]);
-
-    const weekdayTemplate = await ClockTemplate.create({
-      templateName: 'Weekday Template',
-      description: 'Song at 0, Ad cart at 15',
-    });
-    await ClockTemplateSlot.bulkCreate([
-      { clockTemplateId: weekdayTemplate.id, minuteOffset: 0, slotType: 'song' },
-      { clockTemplateId: weekdayTemplate.id, minuteOffset: 15, slotType: 'cart', cartId: adCart.id },
-    ]);
-
-    // 6. Create Station #1
+    // 2) Create a Station
     const station1 = await Station.create({
       name: 'Station #1',
-      // no defaultClockTemplateId => we'll rely on schedule
-    });
-    await StationProfile.create({
-      stationId: station1.id,
-      storeHours: '9am-5pm',
-      contactInfo: '555-1234',
+      // will assign defaultClockTemplateId after we create a ClockTemplate
     });
 
-    // 7. StationSchedule: Sunday => dayOfWeek=0 => Sunday Template
-    await StationSchedule.create({
-      stationId: station1.id,
-      clockTemplateId: sundayTemplate.id,
-      startHour: 0,
-      endHour: 23,
-      dayOfWeek: 0, // Sunday
-    });
-    // All other days => dayOfWeek=null => weekday template
-    await StationSchedule.create({
-      stationId: station1.id,
-      clockTemplateId: weekdayTemplate.id,
-      startHour: 0,
-      endHour: 23,
-      dayOfWeek: null,
+    // 3) Create a Format (optional) - e.g. "Rock" 
+    const rockFormat = await Format.create({ name: 'Rock' });
+
+    // 4) Create some Content
+    // We'll make 2 songs, 2 ads
+    const contentSongA = await Content.create({
+      title: 'Rock Anthem 1',
+      contentType: 'song',
+      formatId: rockFormat.id,
+      duration: 180,
+      score: 1.0,
+      fileName: 'rock_anthem_1.mp3',
     });
 
-    // 8. (Optional) Exclude a piece of content for Station #1, e.g. "Rock Anthem 2"
-    // StationExcludedContent.create({ stationId: station1.id, contentId: song2.id });
+    const contentSongB = await Content.create({
+      title: 'Rock Anthem 2',
+      contentType: 'song',
+      formatId: rockFormat.id,
+      duration: 200,
+      score: 1.0,
+      fileName: 'rock_anthem_2.mp3',
+    });
 
-    console.log('Database synced and seeded successfully with day-of-week + time-of-day + exclude logic example.');
+    const contentAdA = await Content.create({
+      title: 'Car Dealership Ad',
+      contentType: 'ad',
+      duration: 30,
+      score: 1.0,
+      fileName: 'car_ad.mp3',
+    });
+
+    const contentAdB = await Content.create({
+      title: 'Local Vendor Ad',
+      contentType: 'ad',
+      duration: 25,
+      score: 1.0,
+      fileName: 'vendor_ad.mp3',
+    });
+
+    // 5) Create a Cart for station #1 
+    // Category e.g. "VEN1" means vendor ads
+    const cartVendor = await Cart.create({
+      name: 'Vendor Cart',
+      category: 'VEN1',
+      stationId: station1.id,
+    });
+
+    // 6) Attach some ad content to that cart
+    await CartItem.create({ cartId: cartVendor.id, contentId: contentAdA.id });
+    await CartItem.create({ cartId: cartVendor.id, contentId: contentAdB.id });
+
+    // 7) Create a ClockTemplate
+    const clockTemplate1 = await ClockTemplate.create({
+      templateName: 'Basic Hour',
+      description: 'Test clock with songs and ads',
+    });
+
+    // 8) Create a few ClockTemplateSlots referencing either "song" or the cart
+    // For simplicity, we do something like: Song, then Cart, then Song
+    await ClockTemplateSlot.create({
+      clockTemplateId: clockTemplate1.id,
+      slotType: 'song', 
+      minuteOffset: 0, 
+      // cartId: null since it's a direct "song"
+    });
+    // Second slot uses the vendor cart
+    await ClockTemplateSlot.create({
+      clockTemplateId: clockTemplate1.id,
+      slotType: 'cart',
+      minuteOffset: 5,
+      cartId: cartVendor.id, // references the vendor cart
+    });
+    // Third slot another "song"
+    await ClockTemplateSlot.create({
+      clockTemplateId: clockTemplate1.id,
+      slotType: 'song',
+      minuteOffset: 10,
+    });
+
+    // 9) Assign that clock template as the station's default
+    station1.defaultClockTemplateId = clockTemplate1.id;
+    await station1.save();
+
+    console.log('Seeding complete. Created station, format, content, cart, and a test clock template.');
   } catch (error) {
     console.error('Seeding error:', error);
   } finally {

@@ -1,5 +1,3 @@
-// src/pages/CartList.jsx
-
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -12,6 +10,7 @@ function CartList() {
 
   useEffect(() => {
     axios
+      // optionally pass stationId if you want only that station's carts
       .get('http://173.230.134.186:5000/api/carts')
       .then((res) => {
         setCarts(res.data);
@@ -58,6 +57,8 @@ function CartList() {
             <tr>
               <th>ID</th>
               <th>Cart Name</th>
+              <th>Category</th>
+              <th>Station ID</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -66,6 +67,8 @@ function CartList() {
               <tr key={cart.id}>
                 <td>{cart.id}</td>
                 <td>{cart.name}</td>
+                <td>{cart.category || ''}</td>
+                <td>{cart.stationId}</td>
                 <td>
                   <button onClick={() => goToEdit(cart.id)}>Edit</button>{' '}
                   <button onClick={() => handleDelete(cart.id)}>Delete</button>

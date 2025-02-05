@@ -2,8 +2,7 @@
 
 const sequelize = require('../config/database');
 
-// ---------- MODEL IMPORTS ----------
-// (Pulled from your repo, with added Cart & CartItem references)
+// Existing model imports
 const Station = require('./Station');
 const StationProfile = require('./StationProfile');
 const StationSchedule = require('./StationSchedule');
@@ -19,13 +18,11 @@ const StationTagPreference = require('./StationTagPreference');
 const PlaybackLog = require('./PlaybackLog');
 const ClockTemplateSlot = require('./ClockTemplateSlot');
 
-// ---------- NEW CART MODELS -----------
+// NEW: Import Cart + CartItem with stationId, category
 const Cart = require('./Cart');
 const CartItem = require('./CartItem');
 
-// ---------- ASSOCIATIONS ----------
-
-// Station <-> StationProfile
+// ---------- STATION & PROFILE ---------- 
 Station.hasMany(StationProfile, { foreignKey: 'stationId' });
 StationProfile.belongsTo(Station, { foreignKey: 'stationId' });
 
@@ -57,16 +54,20 @@ StationExcludedContent.belongsTo(Station, { foreignKey: 'stationId' });
 Content.hasMany(StationExcludedContent, { foreignKey: 'contentId' });
 StationExcludedContent.belongsTo(Content, { foreignKey: 'contentId' });
 
-// ---------- CART & CARTITEM & CONTENT ----------
+// ---------- CART, CARTITEM & CONTENT ---------- 
+// Station <-> Cart
+Station.hasMany(Cart, { foreignKey: 'stationId' });
+Cart.belongsTo(Station, { foreignKey: 'stationId' });
+
 // Cart <-> CartItem
 Cart.hasMany(CartItem, { foreignKey: 'cartId' });
 CartItem.belongsTo(Cart, { foreignKey: 'cartId' });
 
-// CartItem <-> Content with alias "Content"
+// CartItem <-> Content (alias "Content")
 CartItem.belongsTo(Content, { foreignKey: 'contentId', as: 'Content' });
 Content.hasMany(CartItem, { foreignKey: 'contentId', as: 'CartItems' });
 
-// ---------- CLOCK TEMPLATE & SLOTS ----------
+// ---------- CLOCK TEMPLATES & SLOTS ----------
 ClockTemplate.hasMany(ClockTemplateSlot, {
   foreignKey: 'clockTemplateId',
   as: 'slots',
@@ -76,7 +77,7 @@ ClockTemplateSlot.belongsTo(ClockTemplate, {
   as: 'clockTemplate',
 });
 
-// If referencing cart in slots
+// Possibly referencing cart in slots
 Cart.hasMany(ClockTemplateSlot, { foreignKey: 'cartId' });
 ClockTemplateSlot.belongsTo(Cart, { foreignKey: 'cartId' });
 
@@ -99,7 +100,7 @@ PlaybackLog.belongsTo(Station, { foreignKey: 'stationId' });
 Content.hasMany(PlaybackLog, { foreignKey: 'contentId' });
 PlaybackLog.belongsTo(Content, { foreignKey: 'contentId' });
 
-// ---------- EXPORT ALL ----------
+// ---------- EXPORT ----------
 module.exports = {
   sequelize,
   Station,
@@ -117,7 +118,6 @@ module.exports = {
   PlaybackLog,
   ClockTemplateSlot,
 
-  // NEW CART MODELS
   Cart,
   CartItem,
 };

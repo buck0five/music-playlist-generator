@@ -1,5 +1,3 @@
-// src/pages/NewCart.jsx
-
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -7,6 +5,8 @@ import { useNavigate } from 'react-router-dom';
 function NewCart() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [stationId, setStationId] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = (e) => {
@@ -15,9 +15,13 @@ function NewCart() {
       setError('Cart name is required');
       return;
     }
+    if (!stationId) {
+      setError('stationId is required');
+      return;
+    }
 
     axios
-      .post('http://173.230.134.186:5000/api/carts', { name })
+      .post('http://173.230.134.186:5000/api/carts', { name, category, stationId: parseInt(stationId, 10) })
       .then(() => {
         navigate('/carts');
       })
@@ -41,6 +45,27 @@ function NewCart() {
             required
           />
         </div>
+
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label>Cart Category: </label>
+          <input
+            type="text"
+            placeholder="e.g. VEN1, NET1..."
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          />
+        </div>
+
+        <div style={{ marginBottom: '0.5rem' }}>
+          <label>Station ID: </label>
+          <input
+            type="number"
+            value={stationId}
+            onChange={(e) => setStationId(e.target.value)}
+            required
+          />
+        </div>
+
         <button type="submit">Create</button>
       </form>
     </div>
