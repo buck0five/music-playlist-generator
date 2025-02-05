@@ -1,3 +1,5 @@
+// src/pages/CartList.jsx
+
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +12,7 @@ function CartList() {
 
   useEffect(() => {
     axios
-      .get('/api/carts')
+      .get('http://173.230.134.186:5000/api/carts')
       .then((res) => {
         setCarts(res.data);
       })
@@ -30,7 +32,7 @@ function CartList() {
 
   const handleDelete = (id) => {
     axios
-      .delete(`/api/carts/${id}`)
+      .delete(`http://173.230.134.186:5000/api/carts/${id}`)
       .then(() => {
         setRefreshKey((prev) => prev + 1);
       })

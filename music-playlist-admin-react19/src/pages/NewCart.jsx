@@ -1,3 +1,5 @@
+// src/pages/NewCart.jsx
+
 import React, { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
@@ -15,7 +17,7 @@ function NewCart() {
     }
 
     axios
-      .post('/api/carts', { name })
+      .post('http://173.230.134.186:5000/api/carts', { name })
       .then(() => {
         navigate('/carts');
       })

@@ -1,3 +1,5 @@
+// src/pages/EditCart.jsx
+
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -16,7 +18,7 @@ function EditCart() {
 
   useEffect(() => {
     axios
-      .get(`/api/carts/${id}`)
+      .get(`http://173.230.134.186:5000/api/carts/${id}`)
       .then((res) => {
         const { cart, items } = res.data;
         setCart(cart);
@@ -33,7 +35,7 @@ function EditCart() {
 
   const handleRename = () => {
     axios
-      .put(`/api/carts/${id}`, { name: cartName })
+      .put(`http://173.230.134.186:5000/api/carts/${id}`, { name: cartName })
       .then(() => {
         setRefreshKey((prev) => prev + 1);
       })
@@ -49,7 +51,9 @@ function EditCart() {
       return;
     }
     axios
-      .post(`/api/carts/${id}/add-content`, { contentId: parseInt(contentId, 10) })
+      .post(`http://173.230.134.186:5000/api/carts/${id}/add-content`, {
+        contentId: parseInt(contentId, 10),
+      })
       .then(() => {
         setError('');
         setContentId('');
@@ -63,7 +67,7 @@ function EditCart() {
 
   const handleRemoveItem = (cid) => {
     axios
-      .delete(`/api/carts/${id}/remove-content/${cid}`)
+      .delete(`http://173.230.134.186:5000/api/carts/${id}/remove-content/${cid}`)
       .then(() => {
         setError('');
         setRefreshKey((prev) => prev + 1);
@@ -123,7 +127,7 @@ function EditCart() {
           </thead>
           <tbody>
             {items.map((item) => {
-              const contentObj = item.Content; // { id, title, contentType, etc. }
+              const contentObj = item.Content;
               return (
                 <tr key={`${item.cartId}-${item.contentId}`}>
                   <td>{item.contentId}</td>

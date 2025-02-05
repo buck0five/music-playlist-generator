@@ -6,12 +6,11 @@ class Cart extends Model {}
 
 Cart.init(
   {
-    // If your DB column is cartName, you can do:
-    // name: { type: DataTypes.STRING, allowNull: false, field: 'cartName' }
-    // Otherwise, here it’s simply “name”
+    // The JS property "name" -> DB column "cartName"
     name: {
       type: DataTypes.STRING,
       allowNull: false,
+      field: 'cartName',  // This ensures queries look for "cartName" in DB
     },
   },
   {
