@@ -6,10 +6,8 @@ class CartItem extends Model {}
 
 CartItem.init(
   {
-    rotationWeight: {
-      type: DataTypes.FLOAT,
-      defaultValue: 1.0,
-    },
+    // Typically no extra fields unless you want a "weight" or "priority"
+    // If you need an ID, you can define { primaryKey: true, autoIncrement: true }
   },
   {
     sequelize,

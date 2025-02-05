@@ -6,13 +6,12 @@ class Cart extends Model {}
 
 Cart.init(
   {
-    cartName: {
+    // If your DB column is cartName, you can do:
+    // name: { type: DataTypes.STRING, allowNull: false, field: 'cartName' }
+    // Otherwise, here it’s simply “name”
+    name: {
       type: DataTypes.STRING,
       allowNull: false,
-    },
-    cartType: {
-      type: DataTypes.STRING,
-      allowNull: true,
     },
   },
   {
