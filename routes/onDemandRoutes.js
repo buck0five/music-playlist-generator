@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { generatePlaylistForStation } = require('../generatePlaylist');
-// If you want to log to a PlaybackLog or do advanced logic, import additional models here.
+const { PlaybackLog } = require('../models');
 
 router.post('/generate', async (req, res) => {
   try {
@@ -11,14 +11,22 @@ router.post('/generate', async (req, res) => {
     if (!stationId) {
       return res.status(400).json({ error: 'stationId is required.' });
     }
-    // Example call to your existing generator function
+
     const playlistItems = await generatePlaylistForStation(stationId);
 
-    // If you want to log these items in PlaybackLog, do so here.
-    // For now, just return them.
+    // Log each item as "played" instantly
+    if (playlistItems && playlistItems.length) {
+      const logsToCreate = playlistItems.map((item, idx) => ({
+        stationId,
+        contentId: item.id, // assuming item has .id
+        playedAt: new Date(Date.now() + idx * 2000), // offset 2s each for demonstration
+      }));
+      await PlaybackLog.bulkCreate(logsToCreate);
+    }
+
     res.json({
       success: true,
-      message: 'On-demand playlist generated',
+      message: 'On-demand playlist generated & logged',
       playlist: playlistItems || [],
     });
   } catch (err) {

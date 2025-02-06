@@ -13,7 +13,7 @@ function OnDemandPlaylist() {
       return;
     }
     axios
-      .post('/api/on-demand/generate', { stationId })
+      .post('http://173.230.134.186:5000/api/on-demand/generate', { stationId })
       .then((res) => {
         if (res.data.success) {
           setPlaylist(res.data.playlist || []);

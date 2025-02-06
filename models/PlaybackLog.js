@@ -6,28 +6,13 @@ class PlaybackLog extends Model {}
 
 PlaybackLog.init(
   {
-    stationId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-    contentId: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-    },
-    // The time this item is scheduled or “logged” to play
+    stationId: { type: DataTypes.INTEGER, allowNull: false },
+    contentId: { type: DataTypes.INTEGER, allowNull: false },
     playedAt: {
       type: DataTypes.DATE,
       allowNull: false,
+      defaultValue: DataTypes.NOW,
     },
-    // Optional fields to store station’s dayOfWeek/hour
-    // dayOfWeek: {
-    //   type: DataTypes.INTEGER,
-    //   allowNull: true,
-    // },
-    // hourOfDay: {
-    //   type: DataTypes.INTEGER,
-    //   allowNull: true,
-    // },
   },
   {
     sequelize,

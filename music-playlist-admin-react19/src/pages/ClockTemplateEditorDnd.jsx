@@ -2,327 +2,219 @@
 
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-} from 'react-beautiful-dnd';
-
-/**
- * A drag-and-drop Clock Template Editor with:
- *  - "slots" each having { id, minuteOffset, slotType, cartId }
- *  - Searching by slotType, minuteOffset, cartId
- *  - Reassign offsets on drag reorder
- *  - Save button to PUT changes
- *  - Add and delete slots
- */
+import { useParams } from 'react-router-dom';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 
 function ClockTemplateEditorDnd() {
-  const { id: clockTemplateId } = useParams(); // the :id from route
-  const navigate = useNavigate();
-
+  const { id } = useParams(); // clockTemplateId
   const [template, setTemplate] = useState(null);
   const [slots, setSlots] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  // Fetch the clock template (including slots)
+  // Station ID - optional if you want to filter carts. 
+  // If your logic gets stationId from the clock template or from user input, adapt accordingly:
+  const [stationId, setStationId] = useState('1'); // example default
+
+  // We'll store the station's carts if we want them for slotType='cart'
+  const [carts, setCarts] = useState([]);
+
+  // Fetch the clock template (and slots) on mount
   useEffect(() => {
-    loadTemplate();
-  }, [clockTemplateId]);
-
-  const loadTemplate = () => {
-    setLoading(true);
     axios
-      .get(`http://173.230.134.186:5000/api/clock-templates/${clockTemplateId}`)
+      .get(`http://173.230.134.186:5000/api/clock-templates/${id}`)
       .then((res) => {
-        const tmpl = res.data;
-        setTemplate(tmpl);
-
-        // Sort slots by minuteOffset ascending
-        const sortedSlots = (tmpl.slots || []).slice().sort(
-          (a, b) => a.minuteOffset - b.minuteOffset
-        );
-        setSlots(sortedSlots);
-
-        setLoading(false);
-        setError('');
+        setTemplate(res.data);
+        if (res.data && res.data.slots) {
+          // sort by minuteOffset or existing logic
+          const sortedSlots = [...res.data.slots].sort(
+            (a, b) => a.minuteOffset - b.minuteOffset
+          );
+          setSlots(sortedSlots);
+        }
       })
       .catch((err) => {
+        setError('Error fetching clock template');
         console.error(err);
-        setError('Error loading clock template');
-        setLoading(false);
       });
-  };
+  }, [id]);
 
-  // Filtered slots based on searchTerm
-  const filteredSlots = slots.filter((slot) => {
-    if (!searchTerm) return true;
-    // we search in minuteOffset, slotType, cartId
-    const term = searchTerm.toLowerCase();
-    const offsetStr = String(slot.minuteOffset || '').toLowerCase();
-    const typeStr = String(slot.slotType || '').toLowerCase();
-    const cartStr = String(slot.cartId || '').toLowerCase();
-    return (
-      offsetStr.includes(term) ||
-      typeStr.includes(term) ||
-      cartStr.includes(term)
-    );
-  });
-
-  // Reorder function for drag-and-drop
-  const reorder = (list, startIndex, endIndex) => {
-    const result = Array.from(list);
-    const [removed] = result.splice(startIndex, 1);
-    result.splice(endIndex, 0, removed);
-    return result;
-  };
-
-  // When user finishes dragging
-  const onDragEnd = (result) => {
-    // dropped outside the list
-    if (!result.destination) {
-      return;
-    }
-    const newSlots = reorder(
-      filteredSlots, // but we need the full slots list
-      result.source.index,
-      result.destination.index
-    );
-    // This reordering only applies to the filtered subset, so we should
-    // properly reorder the main slots array too.
-    applyReorderToAllSlots(newSlots, result.source.index, result.destination.index);
-  };
-
-  const applyReorderToAllSlots = (filteredListReordered, sourceIndex, destIndex) => {
-    /**
-     * This approach is a bit tricky because user is dragging within the "filteredSlots" subset,
-     * but we want to reorder the entire "slots" array accordingly. 
-     * We'll do a simpler approach: if searchTerm is empty, we reorder the entire array by index.
-     * If there's a searchTerm, we can still try to reassign minuteOffset. 
-     *
-     * For simplicity, let's assume the user won't do complicated drag moves while filtering.
-     * We'll just reassign minuteOffsets in the new order from 0.. step.
-     */
-    if (searchTerm) {
-      alert("Drag reorder with a search filter can be confusing. Try clearing the search first.");
-    }
-
-    // We'll recast the entire unfiltered 'slots' array in the new order
-    const newSlots = [...slots];
-    // apply the same reorder function on the *full* array if searchTerm is empty
-    if (!searchTerm) {
-      const res = reorder(newSlots, sourceIndex, destIndex);
-      // now reassign minuteOffset = index for each
-      for (let i = 0; i < res.length; i++) {
-        res[i].minuteOffset = i; // or i if we want 0..some range
-      }
-      setSlots(res);
-    } else {
-      // if user has searchTerm, we just do nothing or do partial reorder
-      // we'll do the partial reorder of the filtered subset, reassign offsets, then update the main array
-      // This is simpler if user is not doing complicated re-sorting while filtered
-      for (let i = 0; i < filteredListReordered.length; i++) {
-        filteredListReordered[i].minuteOffset = i;
-      }
-      // now we update the main "slots" array by slotId
-      const newMap = {};
-      filteredListReordered.forEach((slot) => {
-        newMap[slot.id] = slot.minuteOffset;
-      });
-      const updated = newSlots.map((s) =>
-        newMap[s.id] !== undefined ? { ...s, minuteOffset: newMap[s.id] } : s
-      );
-      setSlots(updated);
-    }
-  };
-
-  // Inline changes to fields
-  const updateSlotField = (slotId, field, value) => {
-    const newArr = slots.map((s) =>
-      s.id === slotId
-        ? {
-            ...s,
-            [field]: value,
-          }
-        : s
-    );
-    setSlots(newArr);
-  };
-
-  const handleSearch = (e) => {
-    setSearchTerm(e.target.value);
-  };
-
-  const saveChanges = () => {
-    // put each slot's new data
-    Promise.all(
-      slots.map((slot) =>
-        axios.put(`http://173.230.134.186:5000/api/clock-template-slots/${slot.id}`, {
-          minuteOffset: slot.minuteOffset,
-          slotType: slot.slotType,
-          cartId: slot.cartId,
-        })
-      )
-    )
-      .then(() => {
-        alert('Slots updated successfully');
-        loadTemplate(); // refresh
-      })
-      .catch((err) => {
-        console.error(err);
-        setError('Error saving slot changes');
-      });
-  };
-
-  const addSlot = () => {
+  // Optionally fetch station's carts if you want a cart dropdown
+  useEffect(() => {
+    if (!stationId) return;
     axios
-      .post('http://173.230.134.186:5000/api/clock-template-slots', {
-        clockTemplateId: parseInt(clockTemplateId, 10),
-        slotType: 'music',
-        minuteOffset: 0,
-        cartId: null,
-      })
+      .get(`http://173.230.134.186:5000/api/carts?stationId=${stationId}`)
       .then((res) => {
-        const newSlot = res.data;
-        setSlots([...slots, newSlot]);
+        setCarts(res.data || []);
       })
       .catch((err) => {
         console.error(err);
-        setError('Error adding slot');
       });
+  }, [stationId]);
+
+  // DnD reorder logic
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+    const newSlots = Array.from(slots);
+    const [moved] = newSlots.splice(result.source.index, 1);
+    newSlots.splice(result.destination.index, 0, moved);
+
+    // For demonstration, we recalc minuteOffset = index*5 
+    newSlots.forEach((slot, idx) => {
+      slot.minuteOffset = idx * 5;
+    });
+
+    setSlots(newSlots);
   };
 
-  const deleteSlot = (slotId) => {
+  // Update slot's cartId or slotType if user picks a different type/cart
+  const handleSlotFieldChange = (slotId, field, value) => {
+    const newSlots = slots.map((slot) => {
+      if (slot.id === slotId) {
+        return { ...slot, [field]: value };
+      }
+      return slot;
+    });
+    setSlots(newSlots);
+  };
+
+  // Save reorder or field changes
+  const handleSave = () => {
+    setSaving(true);
+    const payload = {
+      slots: slots.map((s) => ({
+        id: s.id,
+        minuteOffset: s.minuteOffset,
+        slotType: s.slotType,
+        cartId: s.slotType === 'cart' ? s.cartId : null,
+      })),
+    };
+
     axios
-      .delete(`http://173.230.134.186:5000/api/clock-template-slots/${slotId}`)
+      .put(`http://173.230.134.186:5000/api/clock-templates/${id}/slots`, payload)
       .then(() => {
-        setSlots(slots.filter((s) => s.id !== slotId));
+        setSaving(false);
+        alert('Slots updated successfully!');
       })
       .catch((err) => {
+        setSaving(false);
+        setError('Error saving slot reorder');
         console.error(err);
-        setError('Error deleting slot');
       });
   };
 
-  if (loading) return <p>Loading template...</p>;
-  if (!template) return <p style={{ color: 'red' }}>{error || 'Template not found'}</p>;
+  if (error) {
+    return <p style={{ color: 'red', margin: '1rem' }}>{error}</p>;
+  }
+  if (!template) {
+    return <p style={{ margin: '1rem' }}>Loading clock template...</p>;
+  }
 
-  // The displayed "list" is the filteredSlots
-  // We'll pass that to DragDropContext for reordering
   return (
-    <div style={{ marginBottom: '2rem' }}>
-      <h2>Clock Template Editor (Drag & Drop) - {template.templateName}</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div style={{ margin: '1rem' }}>
+      <h2>Clock Template DnD: {template.templateName}</h2>
+      <p>{template.description || ''}</p>
 
+      {/* Optional: choose station for cart reference */}
       <div style={{ marginBottom: '1rem' }}>
-        <label>Search Slots: </label>
+        <label>Station ID (for cart loading): </label>
         <input
-          type="text"
-          value={searchTerm}
-          onChange={handleSearch}
-          placeholder="Type offset, slotType, or cartId"
+          type="number"
+          value={stationId}
+          onChange={(e) => setStationId(e.target.value)}
+          style={{ width: '60px' }}
         />
+        <span style={{ marginLeft: '1rem' }}>
+          {carts.length} carts loaded for station {stationId}
+        </span>
       </div>
 
-      <button onClick={addSlot}>Add Slot</button>{' '}
-      <button onClick={saveChanges}>Save Changes</button>
-
-      <hr />
-
-      <DragDropContext onDragEnd={onDragEnd}>
-        <table border="1" cellPadding="5" style={{ borderCollapse: 'collapse', width: '100%' }}>
-          <thead>
-            <tr>
-              <th style={{ width: '10%' }}>Minute</th>
-              <th style={{ width: '20%' }}>Slot Type</th>
-              <th style={{ width: '20%' }}>Cart ID</th>
-              <th style={{ width: '10%' }}>Actions</th>
-            </tr>
-          </thead>
-
-          <Droppable droppableId="slotsDroppable">
-            {(provided) => (
-              <tbody
-                ref={provided.innerRef}
-                {...provided.droppableProps}
-                style={{ backgroundColor: '#f9f9f9' }}
-              >
-                {filteredSlots
-                  .slice()
-                  .sort((a, b) => a.minuteOffset - b.minuteOffset)
-                  .map((slot, index) => (
-                    <Draggable
-                      draggableId={String(slot.id)}
-                      index={index}
-                      key={slot.id}
+      <DragDropContext onDragEnd={handleDragEnd}>
+        <Droppable droppableId="slots">
+          {(provided) => (
+            <div
+              ref={provided.innerRef}
+              {...provided.droppableProps}
+              style={{ background: '#fafafa', padding: '1rem' }}
+            >
+              {slots.map((slot, index) => (
+                <Draggable
+                  key={slot.id.toString()}
+                  draggableId={slot.id.toString()}
+                  index={index}
+                >
+                  {(provided2) => (
+                    <div
+                      ref={provided2.innerRef}
+                      {...provided2.draggableProps}
+                      {...provided2.dragHandleProps}
+                      style={{
+                        background: '#fff',
+                        border: '1px solid #ccc',
+                        marginBottom: '0.5rem',
+                        padding: '0.5rem',
+                        ...provided2.draggableProps.style,
+                      }}
                     >
-                      {(provided) => (
-                        <tr
-                          ref={provided.innerRef}
-                          {...provided.draggableProps}
-                          {...provided.dragHandleProps}
+                      <div style={{ marginBottom: '0.5rem' }}>
+                        <strong>Slot ID:</strong> {slot.id} |{' '}
+                        <strong>Offset:</strong> {slot.minuteOffset} min
+                      </div>
+
+                      <div style={{ marginBottom: '0.5rem' }}>
+                        <label>Type: </label>
+                        <select
+                          value={slot.slotType}
+                          onChange={(e) =>
+                            handleSlotFieldChange(
+                              slot.id,
+                              'slotType',
+                              e.target.value
+                            )
+                          }
                         >
-                          {/* minuteOffset */}
-                          <td>
-                            <input
-                              type="number"
-                              style={{ width: '60px' }}
-                              value={slot.minuteOffset}
-                              min={0}
-                              max={59}
-                              onChange={(e) => {
-                                let val = parseInt(e.target.value, 10);
-                                if (isNaN(val)) val = 0;
-                                if (val < 0) val = 0;
-                                if (val > 59) val = 59;
-                                updateSlotField(slot.id, 'minuteOffset', val);
-                              }}
-                            />
-                          </td>
+                          <option value="song">song</option>
+                          <option value="cart">cart</option>
+                          <option value="jingle">jingle</option>
+                          {/* or other types you use */}
+                        </select>
+                      </div>
 
-                          {/* slotType */}
-                          <td>
-                            <select
-                              value={slot.slotType}
-                              onChange={(e) => updateSlotField(slot.id, 'slotType', e.target.value)}
-                            >
-                              <option value="music">music</option>
-                              <option value="adCart">adCart</option>
-                              <option value="jingle">jingle</option>
-                              <option value="network">network</option>
-                              {/* etc. */}
-                            </select>
-                          </td>
-
-                          {/* cartId */}
-                          <td>
-                            <input
-                              type="number"
-                              style={{ width: '80px' }}
-                              value={slot.cartId || ''}
-                              onChange={(e) => {
-                                const val = e.target.value !== '' ? parseInt(e.target.value, 10) : null;
-                                updateSlotField(slot.id, 'cartId', val);
-                              }}
-                            />
-                          </td>
-
-                          <td>
-                            <button onClick={() => deleteSlot(slot.id)}>Delete</button>
-                          </td>
-                        </tr>
+                      {slot.slotType === 'cart' && (
+                        <div style={{ marginBottom: '0.5rem' }}>
+                          <label>Cart:</label>
+                          <select
+                            value={slot.cartId || ''}
+                            onChange={(e) =>
+                              handleSlotFieldChange(
+                                slot.id,
+                                'cartId',
+                                parseInt(e.target.value, 10)
+                              )
+                            }
+                          >
+                            <option value="">-- select cart --</option>
+                            {carts.map((c) => (
+                              <option key={c.id} value={c.id}>
+                                {c.name} ({c.category || 'no-cat'}) [ID {c.id}]
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       )}
-                    </Draggable>
-                  ))}
-                {provided.placeholder}
-              </tbody>
-            )}
-          </Droppable>
-        </table>
+                    </div>
+                  )}
+                </Draggable>
+              ))}
+              {provided.placeholder}
+            </div>
+          )}
+        </Droppable>
       </DragDropContext>
+
+      <button onClick={handleSave} disabled={saving}>
+        {saving ? 'Saving...' : 'Save Reorder'}
+      </button>
     </div>
   );
 }

@@ -3,47 +3,63 @@
 const express = require('express');
 const router = express.Router();
 
-const contentCrudRoutes = require('./contentCrudRoutes');
-// e.g. if you have cartCrudRoutes:
-const cartCrudRoutes = require('./cartCrudRoutes');
-// other optional routes:
-const stationRoutes = require('./station');
-const stationProfileRoutes = require('./stationProfile');
-const stationScheduleRoutes = require('./stationSchedule');
-const clockTemplateRoutes = require('./clockTemplate');
-const tagRoutes = require('./tag');
-const stationTagPreferenceRoutes = require('./stationTagPreference');
-const reportRoutes = require('./reportRoutes');
-const onDemandRoutes = require('./onDemandRoutes');
+// ---------------- IMPORT SUB-ROUTES ----------------
+// These come from your repo. Adjust or remove if certain files don't exist.
 
+const stationRoutes = require('./station');              // if you have station.js
+const stationProfileRoutes = require('./stationProfile'); // if stationProfile.js
+const stationScheduleRoutes = require('./stationSchedule'); // if stationSchedule.js
+const clockTemplateRoutes = require('./clockTemplate');   // if clockTemplate.js
+
+// Cart & Content routes
+const cartCrudRoutes = require('./cartCrudRoutes');       // cart editor
+const contentCrudRoutes = require('./contentCrudRoutes'); // content CRUD
+
+// Tagging or advanced preference
+const tagRoutes = require('./tag');                       // if tag.js
+const stationTagPreferenceRoutes = require('./stationTagPreference'); // if stationTagPreference.js
+
+// Reports 
+const reportRoutes = require('./reportRoutes');           // if reportRoutes.js
+
+// On-demand
+const onDemandRoutes = require('./onDemandRoutes');       // newly added for on-demand generation
+
+// ---------------- OTHER IMPORTS (FROM YOUR REPO) ----------------
 const { generatePlaylistForStation } = require('../generatePlaylist');
 const Feedback = require('../models/Feedback');
+const StationExcludedContent = require('../models/StationExcludedContent'); 
+// if you reference it
 
-// station(s)
+// ---------------- MOUNT THE SUB-ROUTES ----------------
+
+// Station
 if (stationRoutes) router.use('/stations', stationRoutes);
 if (stationProfileRoutes) router.use('/station-profiles', stationProfileRoutes);
 if (stationScheduleRoutes) router.use('/station-schedules', stationScheduleRoutes);
 
-// clock templates
+// Clock Templates
 if (clockTemplateRoutes) router.use('/clock-templates', clockTemplateRoutes);
 
-// cart / content
-router.use('/content', contentCrudRoutes);
+// Carts & Content
 router.use('/carts', cartCrudRoutes);
+router.use('/content', contentCrudRoutes);
 
-// advanced tagging
+// Tagging
 if (tagRoutes) router.use('/tags', tagRoutes);
 if (stationTagPreferenceRoutes) {
   router.use('/station-tag-preference', stationTagPreferenceRoutes);
 }
 
-// reports
+// Reports
 if (reportRoutes) router.use('/reports', reportRoutes);
 
-// onDemand
+// On-Demand
 if (onDemandRoutes) router.use('/on-demand', onDemandRoutes);
 
-// generatePlaylist
+// ---------------- EXAMPLE PLAYLIST / FEEDBACK ENDPOINTS ----------------
+
+// Example generatePlaylist endpoint (if you still need it separate from on-demand)
 router.post('/generate-playlist', async (req, res) => {
   try {
     const { stationId } = req.body;
@@ -58,15 +74,16 @@ router.post('/generate-playlist', async (req, res) => {
   }
 });
 
-// feedback
+// Simple feedback route
 router.post('/feedback', async (req, res) => {
   try {
     const { stationId, contentId, feedbackType } = req.body;
     if (!stationId || !contentId || !feedbackType) {
-      return res
-        .status(400)
-        .json({ error: 'stationId, contentId, and feedbackType are required.' });
+      return res.status(400).json({
+        error: 'stationId, contentId, and feedbackType are required.',
+      });
     }
+    // record in Feedback table
     await Feedback.create({ stationId, contentId, feedbackType });
     res.json({ success: true, message: 'Feedback recorded.' });
   } catch (err) {
@@ -75,4 +92,5 @@ router.post('/feedback', async (req, res) => {
   }
 });
 
+// ---------------- EXPORT ----------------
 module.exports = router;
