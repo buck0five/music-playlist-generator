@@ -29,6 +29,10 @@ const onDemandRoutes = require('./onDemandRoutes');       // newly added for on-
 const { generatePlaylistForStation } = require('../generatePlaylist');
 const Feedback = require('../models/Feedback');
 const StationExcludedContent = require('../models/StationExcludedContent'); 
+
+// clock map 
+const clockMapRoutes = require('./clockMapRoutes');
+
 // if you reference it
 
 // ---------------- MOUNT THE SUB-ROUTES ----------------
@@ -44,6 +48,9 @@ if (clockTemplateRoutes) router.use('/clock-templates', clockTemplateRoutes);
 // Carts & Content
 router.use('/carts', cartCrudRoutes);
 router.use('/content', contentCrudRoutes);
+
+// Clock Maps
+router.use('/clock-maps', clockMapRoutes);
 
 // Tagging
 if (tagRoutes) router.use('/tags', tagRoutes);
