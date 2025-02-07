@@ -1,5 +1,4 @@
 // src/pages/PlaybackReport.jsx
-
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
@@ -16,10 +15,10 @@ function PlaybackReport() {
   const fetchLogs = () => {
     setLoading(true);
     setError('');
-    const q = stationId ? `?stationId=${stationId}` : '';
-    // If no proxy, use the full URL: "http://173.230.134.186:5000/api/reports/playback"
+    const query = stationId ? `?stationId=${stationId}` : '';
+    // Full URL to port 5000 so no 404 from :3000
     axios
-      .get(`/api/reports/playback${q}`)
+      .get(`http://173.230.134.186:5000/api/reports/playback${query}`)
       .then((res) => {
         setLogs(res.data || []);
         setLoading(false);
