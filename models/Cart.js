@@ -1,4 +1,5 @@
 // models/Cart.js
+
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -6,21 +7,27 @@ class Cart extends Model {}
 
 Cart.init(
   {
-    // DB column "cartName" if your DB is already using that:
+    // Maps JS property "name" to DB column "cartName"
     name: {
       type: DataTypes.STRING,
       allowNull: false,
-      field: 'cartName', // If your DB literally has "cartName"
+      field: 'cartName',
     },
-    // NEW: short code like "VEN1", "NET1", "THM1", etc.
+    // Short code like "VEN1", "NET1", etc.
     category: {
       type: DataTypes.STRING,
-      allowNull: true, // or false if you want it mandatory
+      allowNull: true,
     },
-    // Tie to a station. If you want a "global" cart, stationId can be NULL.
+    // Ties cart to a station
     stationId: {
       type: DataTypes.INTEGER,
-      allowNull: false, // or true if you allow a global cart
+      allowNull: false,
+    },
+    // Rotation index for round-robin picking
+    rotationIndex: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 0,
     },
   },
   {
