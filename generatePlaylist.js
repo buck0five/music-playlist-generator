@@ -1,74 +1,46 @@
 // generatePlaylist.js
-const { StationSchedule, ClockTemplate } = require('./models');
-// Possibly also need { createPlaylistFromClockTemplate } or something
+
+const { Station, ClockTemplate, ClockTemplateSlot, CartItem, Content, PlaybackLog } = require('./models');
 
 async function generatePlaylistForStation(stationId) {
-  try {
-    // 1. Get current dayOfWeek and hour
-    const now = new Date();
-    const currentDay = now.getDay(); // 0=Sunday..6=Saturday
-    const currentHour = now.getHours(); // 0..23
+  const station = await Station.findByPk(stationId);
+  if (!station) return [];
 
-    // 2. Find all schedules for this station
-    const schedules = await StationSchedule.findAll({
-      where: { stationId },
-    });
+  if (!station.defaultClockTemplateId) return [];
 
-    // 3. Filter by dayOfWeek/time-of-day
-    const matchingSchedules = schedules.filter((sch) => {
-      // If dayOfWeek is not null, it must match currentDay
-      if (sch.dayOfWeek !== null && sch.dayOfWeek !== currentDay) {
-        return false;
-      }
-      // TIME-OF-DAY LOGIC
-      // e.g. if endHour < startHour, might wrap midnight, but let's keep it simple
-      if (currentHour < sch.startHour || currentHour > sch.endHour) {
-        return false;
-      }
-      return true;
-    });
+  const ct = await ClockTemplate.findByPk(station.defaultClockTemplateId, {
+    include: [{ model: ClockTemplateSlot, as: 'slots' }],
+  });
+  if (!ct) return [];
 
-    // 4. Pick the first match or fallback
-    let chosenSchedule = matchingSchedules[0];
-    if (!chosenSchedule) {
-      // No matching schedule? fallback or error
-      // e.g. pick the first schedule from the DB, or throw an error
-      chosenSchedule = schedules[0]; // fallback if you want
-      if (!chosenSchedule) {
-        throw new Error('No schedules found for station, cannot generate playlist.');
+  const slots = (ct.slots || []).sort((a, b) => a.minuteOffset - b.minuteOffset);
+  const final = [];
+
+  for (const slot of slots) {
+    if (slot.slotType === 'song') {
+      const song = await Content.findOne({ where: { contentType: 'song' } });
+      if (song) final.push({ id: song.id, title: song.title });
+    } else if (slot.slotType === 'cart' && slot.cartId) {
+      const items = await CartItem.findAll({
+        where: { cartId: slot.cartId },
+        include: [{ model: Content, as: 'Content' }],
+      });
+      if (items.length) {
+        const picked = items[0].Content;
+        if (picked) final.push({ id: picked.id, title: picked.title });
       }
     }
-
-    // 5. Get the clock template
-    const clockTemplateId = chosenSchedule.clockTemplateId;
-    const clockTemplate = await ClockTemplate.findByPk(clockTemplateId, {
-      // possibly include slots if you want them
-    });
-
-    if (!clockTemplate) {
-      throw new Error(`Clock Template ${clockTemplateId} not found.`);
-    }
-
-    // 6. Build the playlist from that clock template
-    // This is pseudo-code. Adjust to your existing logic:
-    const playlist = createPlaylistFromClockTemplate(clockTemplate);
-
-    // Return the final playlist
-    return playlist;
-  } catch (error) {
-    console.error('Error generating playlist:', error);
-    throw error;
   }
+
+  for (const item of final) {
+    await PlaybackLog.create({
+      stationId,
+      contentId: item.id,
+      playedAt: new Date(),
+    });
+  }
+
+  return final;
 }
 
-// Example helper function
-function createPlaylistFromClockTemplate(clockTemplate) {
-  // do something with clockTemplate, maybe clockTemplate.slots, etc.
-  const playlist = [];
-  // ...build a 24-hour sequence
-  return playlist;
-}
-
-module.exports = {
-  generatePlaylistForStation,
-};
+module.exports = { generatePlaylistForStation };

@@ -1,52 +1,72 @@
 // src/pages/PlaybackReport.jsx
+
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
 function PlaybackReport() {
-  const [reportData, setReportData] = useState([]);
+  const [logs, setLogs] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [stationId, setStationId] = useState('');
 
   useEffect(() => {
+    fetchLogs();
+  }, []);
+
+  const fetchLogs = () => {
+    setLoading(true);
+    setError('');
+    const q = stationId ? `?stationId=${stationId}` : '';
+    // If no proxy, use the full URL: "http://173.230.134.186:5000/api/reports/playback"
     axios
-      .get('/api/reports/playback')
+      .get(`/api/reports/playback${q}`)
       .then((res) => {
-        // If your back end returns an array or an object, adapt accordingly
-        // For now, assume it returns an object with message or data
-        if (res.data.message) {
-          // placeholder
-          setReportData([{ message: res.data.message }]);
-        } else {
-          // or if it's an array, setReportData(res.data)
-          setReportData([]);
-        }
+        setLogs(res.data || []);
         setLoading(false);
       })
       .catch((err) => {
-        setError('Error fetching playback report');
         console.error(err);
+        setError('Error fetching playback logs.');
         setLoading(false);
       });
-  }, []);
+  };
 
-  if (loading) return <p>Loading Playback Report...</p>;
+  if (loading) return <p>Loading playback logs...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
 
   return (
     <div style={{ margin: '1rem' }}>
       <h2>Playback Report</h2>
-      {reportData.length === 0 && <p>No data or placeholder message found.</p>}
-      {reportData.length > 0 && (
-        <table border="1" cellPadding="5">
+      <div style={{ marginBottom: '1rem' }}>
+        <label>Filter by Station ID: </label>
+        <input
+          type="text"
+          value={stationId}
+          onChange={(e) => setStationId(e.target.value)}
+          style={{ marginRight: '0.5rem' }}
+        />
+        <button onClick={fetchLogs}>Apply Filter</button>
+      </div>
+
+      {logs.length === 0 ? (
+        <p>No logs found.</p>
+      ) : (
+        <table border="1" cellPadding="5" style={{ borderCollapse: 'collapse' }}>
           <thead>
             <tr>
-              <th>Message</th>
+              <th>ID</th>
+              <th>Station</th>
+              <th>Content</th>
+              <th>Played At</th>
             </tr>
           </thead>
           <tbody>
-            {reportData.map((row, idx) => (
-              <tr key={idx}>
-                <td>{row.message || 'No message'}</td>
+            {logs.map((log) => (
+              <tr key={log.id}>
+                <td>{log.id}</td>
+                <td>{log.Station ? log.Station.name : log.stationId}</td>
+                <td>{log.Content ? log.Content.title : log.contentId}</td>
+                <td>{new Date(log.playedAt).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
