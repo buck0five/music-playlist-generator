@@ -3,39 +3,23 @@
 const express = require('express');
 const router = express.Router();
 
-// ---------------- IMPORT SUB-ROUTES ----------------
-// These come from your repo. Adjust or remove if certain files don't exist.
+// Existing route imports from your main branch
+const stationRoutes = require('./station');
+const stationProfileRoutes = require('./stationProfile');
+const stationScheduleRoutes = require('./stationSchedule');
+const clockTemplateRoutes = require('./clockTemplate');
+const contentCrudRoutes = require('./contentCrudRoutes');
+const cartCrudRoutes = require('./cartCrudRoutes');
+const tagRoutes = require('./tag');
+const stationTagPreferenceRoutes = require('./stationTagPreference');
+const reportRoutes = require('./reportRoutes');
+const onDemandRoutes = require('./onDemandRoutes');
 
-const stationRoutes = require('./station');              // if you have station.js
-const stationProfileRoutes = require('./stationProfile'); // if stationProfile.js
-const stationScheduleRoutes = require('./stationSchedule'); // if stationSchedule.js
-const clockTemplateRoutes = require('./clockTemplate');   // if clockTemplate.js
-
-// Cart & Content routes
-const cartCrudRoutes = require('./cartCrudRoutes');       // cart editor
-const contentCrudRoutes = require('./contentCrudRoutes'); // content CRUD
-
-// Tagging or advanced preference
-const tagRoutes = require('./tag');                       // if tag.js
-const stationTagPreferenceRoutes = require('./stationTagPreference'); // if stationTagPreference.js
-
-// Reports 
-const reportRoutes = require('./reportRoutes');           // if reportRoutes.js
-
-// On-demand
-const onDemandRoutes = require('./onDemandRoutes');       // newly added for on-demand generation
-
-// ---------------- OTHER IMPORTS (FROM YOUR REPO) ----------------
-const { generatePlaylistForStation } = require('../generatePlaylist');
-const Feedback = require('../models/Feedback');
-const StationExcludedContent = require('../models/StationExcludedContent'); 
-
-// clock map 
+// IMPORTANT: your new clockMap routes
 const clockMapRoutes = require('./clockMapRoutes');
 
-// if you reference it
-
-// ---------------- MOUNT THE SUB-ROUTES ----------------
+const { generatePlaylistForStation } = require('../generatePlaylist');
+const Feedback = require('../models/Feedback');
 
 // Station
 if (stationRoutes) router.use('/stations', stationRoutes);
@@ -49,9 +33,6 @@ if (clockTemplateRoutes) router.use('/clock-templates', clockTemplateRoutes);
 router.use('/carts', cartCrudRoutes);
 router.use('/content', contentCrudRoutes);
 
-// Clock Maps
-router.use('/clock-maps', clockMapRoutes);
-
 // Tagging
 if (tagRoutes) router.use('/tags', tagRoutes);
 if (stationTagPreferenceRoutes) {
@@ -64,40 +45,37 @@ if (reportRoutes) router.use('/reports', reportRoutes);
 // On-Demand
 if (onDemandRoutes) router.use('/on-demand', onDemandRoutes);
 
-// ---------------- EXAMPLE PLAYLIST / FEEDBACK ENDPOINTS ----------------
+// NEW: Clock Maps
+router.use('/clock-maps', clockMapRoutes);
 
-// Example generatePlaylist endpoint (if you still need it separate from on-demand)
+// Example generate-playlist
 router.post('/generate-playlist', async (req, res) => {
   try {
     const { stationId } = req.body;
-    if (!stationId) {
-      return res.status(400).json({ error: 'stationId is required.' });
-    }
+    if (!stationId) return res.status(400).json({ error: 'stationId required' });
     const playlist = await generatePlaylistForStation(stationId);
-    res.json({ success: true, message: 'Playlist generated.', playlist });
-  } catch (error) {
-    console.error('Error generating playlist:', error);
-    res.status(500).json({ error: 'Error generating playlist.' });
+    res.json({ success: true, message: 'Playlist generated', playlist });
+  } catch (err) {
+    console.error('Error generating playlist:', err);
+    res.status(500).json({ error: 'Error generating playlist' });
   }
 });
 
-// Simple feedback route
+// Example feedback
 router.post('/feedback', async (req, res) => {
   try {
     const { stationId, contentId, feedbackType } = req.body;
     if (!stationId || !contentId || !feedbackType) {
-      return res.status(400).json({
-        error: 'stationId, contentId, and feedbackType are required.',
-      });
+      return res
+        .status(400)
+        .json({ error: 'stationId, contentId, feedbackType required' });
     }
-    // record in Feedback table
     await Feedback.create({ stationId, contentId, feedbackType });
-    res.json({ success: true, message: 'Feedback recorded.' });
+    res.json({ success: true, message: 'Feedback recorded' });
   } catch (err) {
     console.error('Error recording feedback:', err);
-    res.status(500).json({ error: 'Error recording feedback.' });
+    res.status(500).json({ error: 'Error recording feedback' });
   }
 });
 
-// ---------------- EXPORT ----------------
 module.exports = router;
