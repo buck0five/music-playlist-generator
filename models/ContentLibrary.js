@@ -12,27 +12,24 @@ ContentLibrary.init(
       primaryKey: true,
       autoIncrement: true,
     },
-
-    // e.g. "Global Library", "Hardware Ads", "Pet Store Music", etc.
+    // e.g. "Global", "Hardware Ads", "Pet Store Music", etc.
     name: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-
-    // optional description
+    // optional descriptive text
     description: {
       type: DataTypes.STRING,
       allowNull: true,
     },
 
-    // set this if the library is private to a certain user
+    // If you want a private user library
     userId: {
       type: DataTypes.INTEGER,
       allowNull: true,
     },
 
-    // set this if the library is segment/vertical-based (if you have a 'Vertical.js' or 'Segment.js')
-    // can remain null for user-based or global
+    // If you want a library tied to a vertical
     verticalId: {
       type: DataTypes.INTEGER,
       allowNull: true,

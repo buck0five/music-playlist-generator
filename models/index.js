@@ -20,58 +20,71 @@ const Cart = require('./Cart');
 const CartItem = require('./CartItem');
 const ClockMap = require('./ClockMap');
 const ClockMapSlot = require('./ClockMapSlot');
-
-// NEW: your ContentLibrary model
+const Vertical = require('./Vertical'); // new import
 const ContentLibrary = require('./ContentLibrary');
 
-// existing associations...
+// OPTIONAL: If you have a User model or plan to add it
+// const User = require('./User');
 
-// STATION <-> PROFILES
+// ---------- STATION & PROFILES ----------
 Station.hasMany(StationProfile, { foreignKey: 'stationId' });
 StationProfile.belongsTo(Station, { foreignKey: 'stationId' });
 
-// STATION <-> SCHEDULE
+// Station <-> StationSchedule
 Station.hasMany(StationSchedule, { foreignKey: 'stationId' });
 StationSchedule.belongsTo(Station, { foreignKey: 'stationId' });
 
-// FORMAT <-> CONTENT
+// ---------- FORMAT & CONTENT ----------
 Format.hasMany(Content, { foreignKey: 'formatId' });
 Content.belongsTo(Format, { foreignKey: 'formatId' });
 
-// CONTENTTYPE <-> CONTENT
+// ---------- CONTENTTYPE & CONTENT ----------
 ContentType.hasMany(Content, { foreignKey: 'contentTypeId' });
 Content.belongsTo(ContentType, { foreignKey: 'contentTypeId' });
 
-// STATION <-> FEEDBACK
+// ---------- STATION & FEEDBACK ----------
 Station.hasMany(Feedback, { foreignKey: 'stationId' });
 Feedback.belongsTo(Station, { foreignKey: 'stationId' });
 
-// CONTENT <-> FEEDBACK
+// ---------- CONTENT & FEEDBACK ----------
 Content.hasMany(Feedback, { foreignKey: 'contentId' });
 Feedback.belongsTo(Content, { foreignKey: 'contentId' });
 
-// STATION <-> EXCLUDEDCONTENT
+// ---------- STATION EXCLUDED CONTENT ----------
 Station.hasMany(StationExcludedContent, { foreignKey: 'stationId' });
 StationExcludedContent.belongsTo(Station, { foreignKey: 'stationId' });
 
 Content.hasMany(StationExcludedContent, { foreignKey: 'contentId' });
 StationExcludedContent.belongsTo(Content, { foreignKey: 'contentId' });
 
-// CARTS
+// ---------- CART & CARTITEM, CONTENT ----------
 Cart.hasMany(CartItem, { foreignKey: 'cartId' });
 CartItem.belongsTo(Cart, { foreignKey: 'cartId' });
 
 CartItem.belongsTo(Content, { foreignKey: 'contentId', as: 'Content' });
 Content.hasMany(CartItem, { foreignKey: 'contentId', as: 'CartItems' });
 
-// CLOCK TEMPLATES & SLOTS
-ClockTemplate.hasMany(ClockTemplateSlot, { foreignKey: 'clockTemplateId', as: 'slots' });
-ClockTemplateSlot.belongsTo(ClockTemplate, { foreignKey: 'clockTemplateId', as: 'clockTemplate' });
+// --------- Verticals and Libraries  ----------------
+Vertical.hasMany(Station, { foreignKey: 'verticalId' });
+Station.belongsTo(Vertical, { foreignKey: 'verticalId' });
+
+Vertical.hasMany(ContentLibrary, { foreignKey: 'verticalId' });
+ContentLibrary.belongsTo(Vertical, { foreignKey: 'verticalId' });
+
+// ---------- CLOCK TEMPLATE & SLOT ----------
+ClockTemplate.hasMany(ClockTemplateSlot, {
+  foreignKey: 'clockTemplateId',
+  as: 'slots',
+});
+ClockTemplateSlot.belongsTo(ClockTemplate, {
+  foreignKey: 'clockTemplateId',
+  as: 'clockTemplate',
+});
 
 Cart.hasMany(ClockTemplateSlot, { foreignKey: 'cartId' });
 ClockTemplateSlot.belongsTo(Cart, { foreignKey: 'cartId' });
 
-// TAGGING
+// ---------- TAGGING ----------
 ContentTag.belongsTo(Content, { foreignKey: 'contentId' });
 ContentTag.belongsTo(Tag, { foreignKey: 'tagId' });
 Content.hasMany(ContentTag, { foreignKey: 'contentId' });
@@ -82,23 +95,32 @@ StationTagPreference.belongsTo(Tag, { foreignKey: 'tagId' });
 Station.hasMany(StationTagPreference, { foreignKey: 'stationId' });
 Tag.hasMany(StationTagPreference, { foreignKey: 'tagId' });
 
-// PLAYBACK LOG
+// ---------- PLAYBACK LOG ----------
 Station.hasMany(PlaybackLog, { foreignKey: 'stationId' });
 PlaybackLog.belongsTo(Station, { foreignKey: 'stationId' });
+
 Content.hasMany(PlaybackLog, { foreignKey: 'contentId' });
 PlaybackLog.belongsTo(Content, { foreignKey: 'contentId' });
 
-// CLOCK MAP
+// ---------- CLOCK MAP, SLOT ----------
 ClockMap.hasMany(ClockMapSlot, { foreignKey: 'clockMapId' });
 ClockMapSlot.belongsTo(ClockMap, { foreignKey: 'clockMapId' });
 Station.belongsTo(ClockMap, { foreignKey: 'clockMapId' });
 ClockMap.hasMany(Station, { foreignKey: 'clockMapId' });
 
-// -------- CONTENTLIBRARY <-> CONTENT --------
+// ---------- CONTENT LIBRARY & CONTENT ----------
 ContentLibrary.hasMany(Content, { foreignKey: 'libraryId' });
 Content.belongsTo(ContentLibrary, { foreignKey: 'libraryId' });
 
-// EXPORT
+// OPTIONAL: If you have a User model for private libraries
+// User.hasMany(ContentLibrary, { foreignKey: 'userId' });
+// ContentLibrary.belongsTo(User, { foreignKey: 'userId' });
+
+// OPTIONAL: If you have a Vertical model for vertical-based libraries
+// Vertical.hasMany(ContentLibrary, { foreignKey: 'verticalId' });
+// ContentLibrary.belongsTo(Vertical, { foreignKey: 'verticalId' });
+
+// ---------- EXPORTS ----------
 module.exports = {
   sequelize,
   Station,
@@ -120,4 +142,8 @@ module.exports = {
   ClockMap,
   ClockMapSlot,
   ContentLibrary,
+
+  // OPTIONAL:
+  // User,
+  // Vertical,
 };

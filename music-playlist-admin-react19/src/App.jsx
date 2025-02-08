@@ -21,6 +21,9 @@ import NewCart from './pages/NewCart';
 import EditCart from './pages/EditCart';
 import PlaybackReport from './pages/PlaybackReport';
 import OnDemandPlaylist from './pages/OnDemandPlaylist';
+import ContentLibraryList from './pages/ContentLibraryList';
+import NewContentLibrary from './pages/NewContentLibrary';
+import EditContentLibrary from './pages/EditContentLibrary';
 
 // Clock Maps
 import ClockMapList from './pages/ClockMapList';
@@ -46,7 +49,9 @@ function App() {
           <Link to="/carts/new">New Cart</Link> |{' '}
           <Link to="/reports/playback">Playback Report</Link> |{' '}
           <Link to="/on-demand">On-Demand Playlist</Link> |{' '}
-          <Link to="/clock-maps">Clock Maps</Link>
+          <Link to="/clock-maps">Clock Maps</Link> |{' '}
+	  <Link to="/content-libraries">Libraries</Link> |{' '}
+
         </nav>
 
         <Routes>
@@ -84,6 +89,10 @@ function App() {
           <Route path="/clock-maps" element={<ClockMapList />} />
           <Route path="/clock-maps/new" element={<NewClockMap />} />  {/* <-- NEW */}
           <Route path="/clock-maps/:mapId/edit" element={<ClockMapEditor />} />
+
+	  <Route path="/content-libraries" element={<ContentLibraryList />} />
+	  <Route path="/content-libraries/new" element={<NewContentLibrary />} />
+	  <Route path="/content-libraries/:id/edit" element={<EditContentLibrary />} />
         </Routes>
       </div>
     </Router>
