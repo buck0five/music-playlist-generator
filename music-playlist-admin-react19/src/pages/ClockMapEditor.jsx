@@ -26,11 +26,20 @@ function ClockMapEditor() {
     axios
       .get(`http://173.230.134.186:5000/api/clock-maps/${mapId}`)
       .then((res) => {
-        const data = res.data;
-        setClockMap(data);
-        // unify name -> "ClockMapSlots"
-        const s = data.ClockMapSlots || [];
-        setSlots(s);
+        if (!res.data || !res.data.id) {
+          setError('Clock Map not found.');
+          return;
+        }
+        setClockMap(res.data);
+
+        const arr = res.data.ClockMapSlots || [];
+        // parse dayOfWeek/hour to int
+        const normalized = arr.map((s) => ({
+          ...s,
+          dayOfWeek: parseInt(s.dayOfWeek, 10),
+          hour: parseInt(s.hour, 10),
+        }));
+        setSlots(normalized);
       })
       .catch((err) => {
         console.error(err);
@@ -41,14 +50,12 @@ function ClockMapEditor() {
   const fetchTemplates = () => {
     axios
       .get('http://173.230.134.186:5000/api/clock-templates')
-      .then((res) => {
-        setTemplates(res.data || []);
-      })
+      .then((res) => setTemplates(res.data || []))
       .catch((err) => console.error(err));
   };
 
   const findSlot = (d, h) => {
-    return slots.find((s) => s.dayOfWeek === d && s.hour === h);
+    return slots.find((slot) => slot.dayOfWeek === d && slot.hour === h);
   };
 
   const handleSlotChange = (dayOfWeek, hour, newTemplateId) => {
@@ -58,13 +65,15 @@ function ClockMapEditor() {
       existing.clockTemplateId = parsedId;
       setSlots([...slots]);
     } else {
-      const newSlot = {
-        id: null,
-        dayOfWeek,
-        hour,
-        clockTemplateId: parsedId,
-      };
-      setSlots([...slots, newSlot]);
+      setSlots([
+        ...slots,
+        {
+          id: null,
+          dayOfWeek,
+          hour,
+          clockTemplateId: parsedId,
+        },
+      ]);
     }
   };
 
@@ -75,8 +84,15 @@ function ClockMapEditor() {
       .then((res) => {
         setStatus('Saved!');
         if (res.data.clockMap) {
-          setClockMap(res.data.clockMap);
-          setSlots(res.data.clockMap.ClockMapSlots || []);
+          // parse them again in case we get them as strings
+          const cm = res.data.clockMap;
+          const norm = (cm.ClockMapSlots || []).map((s) => ({
+            ...s,
+            dayOfWeek: parseInt(s.dayOfWeek, 10),
+            hour: parseInt(s.hour, 10),
+          }));
+          setClockMap(cm);
+          setSlots(norm);
         }
       })
       .catch((err) => {
@@ -86,7 +102,9 @@ function ClockMapEditor() {
       });
   };
 
-  if (!clockMap) return <p>{error || 'Loading map...'}</p>;
+  if (!clockMap) {
+    return <p>{error || 'Loading map...'}</p>;
+  }
 
   return (
     <div style={{ margin: '1rem' }}>
@@ -106,7 +124,9 @@ function ClockMapEditor() {
         <tbody>
           {hours.map((hr) => (
             <tr key={hr}>
-              <td><strong>{hr}:00</strong></td>
+              <td>
+                <strong>{hr}:00</strong>
+              </td>
               {days.map((_, dIndex) => {
                 const slot = findSlot(dIndex, hr);
                 const chosenId = slot && slot.clockTemplateId ? slot.clockTemplateId : '';

@@ -7,15 +7,25 @@ class ClockMapSlot extends Model {}
 
 ClockMapSlot.init(
   {
-    // 0=Sunday, 1=Monday,... or adapt to your preference
+    id: {
+      type: DataTypes.INTEGER,
+      autoIncrement: true,
+      primaryKey: true,
+    },
+    // Must be an INTEGER column
     dayOfWeek: {
       type: DataTypes.INTEGER,
       allowNull: false,
     },
-    // hour: 0..23
+    // Must be an INTEGER column
     hour: {
       type: DataTypes.INTEGER,
       allowNull: false,
+    },
+    // Optionally allow null for "no template"
+    clockTemplateId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
   },
   {

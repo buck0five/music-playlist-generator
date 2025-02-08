@@ -35,7 +35,17 @@ router.get('/:id', async (req, res) => {
       include: [ClockMapSlot],
     });
     if (!map) return res.status(404).json({ error: 'Map not found.' });
-    res.json(map);
+
+    // OPTIONAL: parse dayOfWeek/hour to integers in the response
+    const plain = map.get({ plain: true });
+    if (plain.ClockMapSlots) {
+      plain.ClockMapSlots = plain.ClockMapSlots.map((s) => ({
+        ...s,
+        dayOfWeek: parseInt(s.dayOfWeek, 10),
+        hour: parseInt(s.hour, 10),
+      }));
+    }
+    res.json(plain);
   } catch (err) {
     console.error('Error fetching clock map:', err);
     res.status(500).json({ error: 'Server error fetching clock map.' });
@@ -47,7 +57,6 @@ router.put('/:id', async (req, res) => {
   try {
     const mapId = req.params.id;
     const { name, description } = req.body;
-
     const map = await ClockMap.findByPk(mapId);
     if (!map) return res.status(404).json({ error: 'Map not found.' });
 
@@ -75,19 +84,16 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/clock-maps/:id/slots
-// Replaces old day/hour combos not in your new data. Upserts the rest.
+// PUT /api/clock-maps/:id/slots -> Upsert dayOfWeek/hour combos
 router.put('/:id/slots', async (req, res) => {
   try {
     const mapId = req.params.id;
     const { slots } = req.body;
 
     const map = await ClockMap.findByPk(mapId);
-    if (!map) {
-      return res.status(404).json({ error: 'Map not found.' });
-    }
+    if (!map) return res.status(404).json({ error: 'Map not found.' });
 
-    // unify
+    // gather final slots
     const finalSlots = [];
     const usedKeys = new Set();
 
@@ -98,17 +104,15 @@ router.put('/:id/slots', async (req, res) => {
         usedKeys.add(key);
         finalSlots.push({
           id: s.id || null,
-          dayOfWeek: s.dayOfWeek,
-          hour: s.hour,
+          dayOfWeek: parseInt(s.dayOfWeek, 10),
+          hour: parseInt(s.hour, 10),
           clockTemplateId: s.clockTemplateId || null,
         });
       }
     }
 
     // fetch existing
-    const existingSlots = await ClockMapSlot.findAll({
-      where: { clockMapId: mapId },
-    });
+    const existingSlots = await ClockMapSlot.findAll({ where: { clockMapId: mapId } });
     const existingMap = new Map();
     for (const es of existingSlots) {
       const key = `${es.dayOfWeek}-${es.hour}`;
@@ -127,7 +131,7 @@ router.put('/:id/slots', async (req, res) => {
         await existing.save();
       } else {
         await ClockMapSlot.create({
-          clockMapId: mapId,
+          clockMapId: map.id,
           dayOfWeek: f.dayOfWeek,
           hour: f.hour,
           clockTemplateId: f.clockTemplateId,
@@ -147,7 +151,18 @@ router.put('/:id/slots', async (req, res) => {
     const updatedMap = await ClockMap.findByPk(mapId, {
       include: [ClockMapSlot],
     });
-    res.json({ success: true, clockMap: updatedMap });
+
+    // parse dayOfWeek/hour to int in final response
+    const plainUpd = updatedMap.get({ plain: true });
+    if (plainUpd.ClockMapSlots) {
+      plainUpd.ClockMapSlots = plainUpd.ClockMapSlots.map((s) => ({
+        ...s,
+        dayOfWeek: parseInt(s.dayOfWeek, 10),
+        hour: parseInt(s.hour, 10),
+      }));
+    }
+
+    res.json({ success: true, clockMap: plainUpd });
   } catch (err) {
     console.error('Error saving clock map slots:', err);
     res.status(500).json({ error: 'Server error saving map slots.' });
