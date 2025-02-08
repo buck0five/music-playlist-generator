@@ -12,94 +12,77 @@ const {
   PlaybackLog,
 } = require('./models');
 
-async function generatePlaylistForStation(stationId) {
-  // 1) Fetch the station
+async function generatePlaylistForStation(stationId, targetDate = new Date()) {
+  // 1) Fetch station
   const station = await Station.findByPk(stationId);
   if (!station) return [];
 
-  // 2) Decide which clock template to use based on day/hour or fallback
-  let templateId = null;
+  // 2) Determine dayOfWeek from targetDate
+  // 0=Sunday..6=Saturday
+  const dayOfWeek = targetDate.getDay();
+  // If you only want a certain day, pass in a date with the right dayOfWeek
 
-  // If station has a clockMapId, we find the correct slot for the current day/hour
-  if (station.clockMapId) {
-    const dayOfWeek = new Date().getDay(); // 0=Sun..6=Sat
-    const hour = new Date().getHours();    // 0..23
-    const mapSlot = await ClockMapSlot.findOne({
-      where: {
-        clockMapId: station.clockMapId,
-        dayOfWeek,
-        hour,
-      },
-    });
-    if (mapSlot) {
-      templateId = mapSlot.clockTemplateId;
-    } 
+  // 3) If station has a clockMapId, find the clock template for each hour
+  if (!station.clockMapId) {
+    // fallback to defaultClockTemplateId if you want or just empty
+    if (!station.defaultClockTemplateId) return [];
+    return generatePlaylistUsingSingleTemplate(station.defaultClockTemplateId);
   }
 
-  // If we didn't get a templateId from clockMap, fallback to station.defaultClockTemplateId
-  if (!templateId && station.defaultClockTemplateId) {
-    templateId = station.defaultClockTemplateId;
-  }
-  
-  // If still no template found, return empty
-  if (!templateId) return [];
-
-  // 3) Fetch the chosen clock template + slots
-  const clockTemplate = await ClockTemplate.findByPk(templateId, {
-    include: [{ model: ClockTemplateSlot, as: 'slots' }],
-  });
-  if (!clockTemplate) return [];
-
-  // sort slots by minuteOffset
-  const slots = (clockTemplate.slots || []).sort(
-    (a, b) => a.minuteOffset - b.minuteOffset
-  );
-
+  // Build a 24-hour (or however many hours you need) playlist for that day
   const finalPlaylist = [];
 
-  // 4) For each slot, pick content
-  for (const slot of slots) {
-    if (slot.slotType === 'song') {
-      // Simple logic: pick first or random "song"
-      const song = await Content.findOne({ where: { contentType: 'song' } });
-      if (song) {
-        finalPlaylist.push({
-          id: song.id,
-          title: song.title,
-          fileName: song.fileName,
-        });
-      }
-
-    } else if (slot.slotType === 'cart' && slot.cartId) {
-      // Round-robin cart rotation
-      const cart = await Cart.findByPk(slot.cartId);
-      if (!cart) continue;
-
-      const items = await CartItem.findAll({
-        where: { cartId: cart.id },
-        include: [{ model: Content, as: 'Content' }],
-      });
-      if (!items.length) continue;
-
-      let rotationIndex = cart.rotationIndex || 0;
-      const picked = items[rotationIndex % items.length].Content;
-
-      if (picked) {
-        finalPlaylist.push({
-          id: picked.id,
-          title: picked.title,
-          fileName: picked.fileName,
-        });
-      }
-
-      cart.rotationIndex = (rotationIndex + 1) % items.length;
-      await cart.save();
+  for (let hour = 0; hour < 24; hour++) {
+    // find the ClockMapSlot for (dayOfWeek, hour)
+    const slot = await ClockMapSlot.findOne({
+      where: { clockMapId: station.clockMapId, dayOfWeek, hour },
+    });
+    if (!slot) {
+      // no template assigned for this hour
+      continue;
     }
 
-    // else if "jingle" or other slotTypes, handle similarly
+    // fetch the clock template
+    const clockTemplate = await ClockTemplate.findByPk(slot.clockTemplateId, {
+      include: [{ model: ClockTemplateSlot, as: 'slots' }],
+    });
+    if (!clockTemplate) continue;
+
+    // sort by minuteOffset
+    const templateSlots = (clockTemplate.slots || []).sort(
+      (a, b) => a.minuteOffset - b.minuteOffset
+    );
+
+    // For each slot in that hour, pick content
+    for (const tSlot of templateSlots) {
+      if (tSlot.slotType === 'song') {
+        const song = await Content.findOne({ where: { contentType: 'song' } });
+        if (song) {
+          finalPlaylist.push({ id: song.id, title: song.title });
+        }
+      } else if (tSlot.slotType === 'cart' && tSlot.cartId) {
+        const cart = await Cart.findByPk(tSlot.cartId);
+        if (!cart) continue;
+
+        const items = await CartItem.findAll({
+          where: { cartId: cart.id },
+          include: [{ model: Content, as: 'Content' }],
+        });
+        if (!items.length) continue;
+
+        let rotationIndex = cart.rotationIndex || 0;
+        const pickedItem = items[rotationIndex % items.length].Content;
+        if (pickedItem) {
+          finalPlaylist.push({ id: pickedItem.id, title: pickedItem.title });
+        }
+        cart.rotationIndex = (rotationIndex + 1) % items.length;
+        await cart.save();
+      }
+      // handle jingle, etc., if needed
+    }
   }
 
-  // 5) Log each item in PlaybackLog
+  // Log all items
   for (const item of finalPlaylist) {
     await PlaybackLog.create({
       stationId,
@@ -108,8 +91,26 @@ async function generatePlaylistForStation(stationId) {
     });
   }
 
-  // 6) Return final array
   return finalPlaylist;
+}
+
+// if fallback needed for single-template stations
+async function generatePlaylistUsingSingleTemplate(templateId) {
+  const clockTemplate = await ClockTemplate.findByPk(templateId, {
+    include: [{ model: ClockTemplateSlot, as: 'slots' }],
+  });
+  if (!clockTemplate) return [];
+
+  const slots = (clockTemplate.slots || []).sort(
+    (a, b) => a.minuteOffset - b.minuteOffset
+  );
+  const final = [];
+  for (const s of slots) {
+    // your slot logic (song/cart rotation) same as above
+    // ...
+  }
+  // log final items...
+  return final;
 }
 
 module.exports = { generatePlaylistForStation };

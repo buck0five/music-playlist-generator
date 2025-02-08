@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { Cart, CartItem, Content, Station } = require('../models');
 
-// GET /api/carts -> list all carts (optionally filter by station)
+// GET /api/carts -> list all carts (optional stationId=)
 router.get('/', async (req, res) => {
   try {
     const stationId = req.query.stationId;
@@ -12,9 +12,11 @@ router.get('/', async (req, res) => {
     if (stationId) {
       whereClause.stationId = stationId;
     }
+
     const carts = await Cart.findAll({
       where: whereClause,
-      include: [Station], // if you want station info
+      // Eager-load Station (no 'as') if the association is plain
+      include: [Station],
     });
     res.json(carts);
   } catch (err) {
@@ -24,7 +26,6 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/carts -> create a new cart
-// body: { name, category, stationId }
 router.post('/', async (req, res) => {
   try {
     const { name, category, stationId } = req.body;
@@ -32,15 +33,8 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Cart name is required.' });
     }
     if (!stationId) {
-      return res.status(400).json({ error: 'stationId is required for cart.' });
+      return res.status(400).json({ error: 'stationId is required.' });
     }
-
-    // optional check: confirm station exists
-    const station = await Station.findByPk(stationId);
-    if (!station) {
-      return res.status(404).json({ error: 'Station not found for stationId.' });
-    }
-
     const newCart = await Cart.create({
       name,
       category,
@@ -53,20 +47,19 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/carts/:id -> fetch one cart, plus its items referencing Content
+// GET /api/carts/:id -> fetch one cart + items
 router.get('/:id', async (req, res) => {
   try {
     const cartId = req.params.id;
-    const cart = await Cart.findByPk(cartId, { include: [Station] });
-    if (!cart) {
-      return res.status(404).json({ error: 'Cart not found.' });
-    }
+    const cart = await Cart.findByPk(cartId, {
+      include: [Station], // same logic
+    });
+    if (!cart) return res.status(404).json({ error: 'Cart not found.' });
 
     const cartItems = await CartItem.findAll({
       where: { cartId },
       include: [{ model: Content, as: 'Content' }],
     });
-
     res.json({ cart, items: cartItems });
   } catch (err) {
     console.error('Error fetching cart:', err);
@@ -74,28 +67,17 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/carts/:id -> update cart name, category, or stationId
+// PUT /api/carts/:id -> update cart
 router.put('/:id', async (req, res) => {
   try {
     const cartId = req.params.id;
     const { name, category, stationId } = req.body;
     const cart = await Cart.findByPk(cartId);
-    if (!cart) {
-      return res.status(404).json({ error: 'Cart not found.' });
-    }
+    if (!cart) return res.status(404).json({ error: 'Cart not found.' });
 
     if (name !== undefined) cart.name = name;
     if (category !== undefined) cart.category = category;
-    if (stationId !== undefined) {
-      // optional check if station exists
-      const station = await Station.findByPk(stationId);
-      if (!station) {
-        return res
-          .status(404)
-          .json({ error: 'Station not found for new stationId.' });
-      }
-      cart.stationId = stationId;
-    }
+    if (stationId !== undefined) cart.stationId = stationId;
 
     await cart.save();
     res.json(cart);
@@ -105,7 +87,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE /api/carts/:id -> remove the cart
+// DELETE /api/carts/:id
 router.delete('/:id', async (req, res) => {
   try {
     const cartId = req.params.id;
@@ -120,15 +102,13 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST /api/carts/:id/add-content -> attach content item to this cart
+// POST /api/carts/:id/add-content
 router.post('/:id/add-content', async (req, res) => {
   try {
     const cartId = req.params.id;
     const { contentId } = req.body;
     if (!contentId) {
-      return res
-        .status(400)
-        .json({ error: 'contentId is required to add content.' });
+      return res.status(400).json({ error: 'contentId required.' });
     }
 
     const cart = await Cart.findByPk(cartId);
@@ -140,25 +120,23 @@ router.post('/:id/add-content', async (req, res) => {
     const cartItem = await CartItem.create({ cartId, contentId });
     res.json({ success: true, cartItem });
   } catch (err) {
-    console.error('Error adding content to cart:', err);
+    console.error('Error adding content:', err);
     res.status(500).json({ error: 'Server error adding content.' });
   }
 });
 
-// DELETE /api/carts/:id/remove-content/:contentId -> remove pivot row
+// DELETE /api/carts/:id/remove-content/:contentId
 router.delete('/:id/remove-content/:contentId', async (req, res) => {
   try {
     const { id: cartId, contentId } = req.params;
     const pivot = await CartItem.findOne({ where: { cartId, contentId } });
     if (!pivot) {
-      return res
-        .status(404)
-        .json({ error: 'Content is not in this cart (pivot not found).' });
+      return res.status(404).json({ error: 'Content not found in cart.' });
     }
     await pivot.destroy();
     res.json({ success: true });
   } catch (err) {
-    console.error('Error removing content from cart:', err);
+    console.error('Error removing content:', err);
     res.status(500).json({ error: 'Server error removing content.' });
   }
 });

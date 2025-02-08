@@ -28,6 +28,10 @@ const ClockMapSlot = require('./ClockMapSlot');
 Station.hasMany(StationProfile, { foreignKey: 'stationId' });
 StationProfile.belongsTo(Station, { foreignKey: 'stationId' });
 
+// Station <-> Cart ?
+Station.hasMany(Cart, { foreignKey: 'stationId' });
+Cart.belongsTo(Station, { foreignKey: 'stationId' });
+
 // Station <-> StationSchedule
 Station.hasMany(StationSchedule, { foreignKey: 'stationId' });
 StationSchedule.belongsTo(Station, { foreignKey: 'stationId' });
