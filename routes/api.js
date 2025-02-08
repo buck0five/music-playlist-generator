@@ -21,6 +21,9 @@ const clockMapRoutes = require('./clockMapRoutes');
 const { generatePlaylistForStation } = require('../generatePlaylist');
 const Feedback = require('../models/Feedback');
 
+const contentLibraryRoutes = require('./contentLibraryRoutes');
+
+
 // Station
 if (stationRoutes) router.use('/stations', stationRoutes);
 if (stationProfileRoutes) router.use('/station-profiles', stationProfileRoutes);
@@ -45,8 +48,12 @@ if (reportRoutes) router.use('/reports', reportRoutes);
 // On-Demand
 if (onDemandRoutes) router.use('/on-demand', onDemandRoutes);
 
-// NEW: Clock Maps
+// Clock Maps
 router.use('/clock-maps', clockMapRoutes);
+
+// Content Libraries
+router.use('/content-libraries', contentLibraryRoutes);
+
 
 // Example generate-playlist
 router.post('/generate-playlist', async (req, res) => {

@@ -6,52 +6,48 @@ class Content extends Model {}
 
 Content.init(
   {
+    // Preserved from your repo:
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
     title: {
       type: DataTypes.STRING,
       allowNull: false,
     },
-    // e.g., "song", "ad"
     contentType: {
       type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: 'song',
+    },
+    // If your repo had contentTypeId, keep it. Otherwise remove. 
+    // This line was present in your older code, so let's preserve it:
+    contentTypeId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    formatId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
     duration: {
       type: DataTypes.INTEGER,
-      allowNull: false,
-      defaultValue: 180, // 3 minutes
+      allowNull: true,
     },
     score: {
       type: DataTypes.FLOAT,
+      allowNull: true,
       defaultValue: 1.0,
     },
     fileName: {
       type: DataTypes.STRING,
-      allowNull: false,
-      defaultValue: 'example.mp3',
-    },
-    // Start/end date for multi-day scheduling
-    startDate: {
-      type: DataTypes.DATE,
       allowNull: true,
     },
-    endDate: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-    // Time-of-day logic (0..23). If null => no restriction
-    dailyStartHour: {
+
+    // NEW: link to ContentLibrary (if null => global)
+    libraryId: {
       type: DataTypes.INTEGER,
       allowNull: true,
-    },
-    dailyEndHour: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-    },
-    visibility: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      defaultValue: 'public',
     },
   },
   {
