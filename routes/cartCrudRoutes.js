@@ -4,7 +4,7 @@ const express = require('express');
 const router = express.Router();
 const { Cart, CartItem, Content, Station } = require('../models');
 
-// GET /api/carts -> list all carts (optional stationId=)
+// GET /api/carts -> list all carts (optionally by stationId)
 router.get('/', async (req, res) => {
   try {
     const stationId = req.query.stationId;
@@ -15,7 +15,6 @@ router.get('/', async (req, res) => {
 
     const carts = await Cart.findAll({
       where: whereClause,
-      // Eager-load Station (no 'as') if the association is plain
       include: [Station],
     });
     res.json(carts);
@@ -35,6 +34,7 @@ router.post('/', async (req, res) => {
     if (!stationId) {
       return res.status(400).json({ error: 'stationId is required.' });
     }
+
     const newCart = await Cart.create({
       name,
       category,
@@ -51,11 +51,11 @@ router.post('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const cartId = req.params.id;
-    const cart = await Cart.findByPk(cartId, {
-      include: [Station], // same logic
-    });
-    if (!cart) return res.status(404).json({ error: 'Cart not found.' });
-
+    const cart = await Cart.findByPk(cartId, { include: [Station] });
+    if (!cart) {
+      return res.status(404).json({ error: 'Cart not found.' });
+    }
+    // fetch pivot items with scheduling fields
     const cartItems = await CartItem.findAll({
       where: { cartId },
       include: [{ model: Content, as: 'Content' }],
@@ -67,11 +67,12 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/carts/:id -> update cart
+// PUT /api/carts/:id -> update cart name/category/stationId
 router.put('/:id', async (req, res) => {
   try {
     const cartId = req.params.id;
     const { name, category, stationId } = req.body;
+
     const cart = await Cart.findByPk(cartId);
     if (!cart) return res.status(404).json({ error: 'Cart not found.' });
 
@@ -102,13 +103,21 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST /api/carts/:id/add-content
+// POST /api/carts/:id/add-content -> attach content item with optional scheduling
 router.post('/:id/add-content', async (req, res) => {
   try {
     const cartId = req.params.id;
-    const { contentId } = req.body;
+    const {
+      contentId,
+      startDate,
+      endDate,
+      daysOfWeek,
+      startHour,
+      endHour,
+    } = req.body;
+
     if (!contentId) {
-      return res.status(400).json({ error: 'contentId required.' });
+      return res.status(400).json({ error: 'contentId is required.' });
     }
 
     const cart = await Cart.findByPk(cartId);
@@ -117,11 +126,54 @@ router.post('/:id/add-content', async (req, res) => {
     const content = await Content.findByPk(contentId);
     if (!content) return res.status(404).json({ error: 'Content not found.' });
 
-    const cartItem = await CartItem.create({ cartId, contentId });
+    // create the pivot with scheduling fields
+    const cartItem = await CartItem.create({
+      cartId,
+      contentId,
+      startDate: startDate || null,
+      endDate: endDate || null,
+      daysOfWeek: daysOfWeek || null,
+      startHour: startHour !== undefined ? startHour : null,
+      endHour: endHour !== undefined ? endHour : null,
+    });
+
     res.json({ success: true, cartItem });
   } catch (err) {
-    console.error('Error adding content:', err);
+    console.error('Error adding content to cart:', err);
     res.status(500).json({ error: 'Server error adding content.' });
+  }
+});
+
+// PUT /api/carts/:id/update-item/:cartItemId -> update scheduling fields for a pivot
+router.put('/:id/update-item/:cartItemId', async (req, res) => {
+  try {
+    const { id: cartId, cartItemId } = req.params;
+    const {
+      startDate,
+      endDate,
+      daysOfWeek,
+      startHour,
+      endHour,
+    } = req.body;
+
+    const pivot = await CartItem.findOne({
+      where: { id: cartItemId, cartId },
+    });
+    if (!pivot) {
+      return res.status(404).json({ error: 'Cart item not found' });
+    }
+
+    pivot.startDate = startDate || null;
+    pivot.endDate = endDate || null;
+    pivot.daysOfWeek = daysOfWeek || null;
+    pivot.startHour = startHour !== undefined ? startHour : null;
+    pivot.endHour = endHour !== undefined ? endHour : null;
+
+    await pivot.save();
+    res.json({ success: true, cartItem: pivot });
+  } catch (err) {
+    console.error('Error updating cart item:', err);
+    res.status(500).json({ error: 'Server error updating cart item.' });
   }
 });
 
@@ -129,14 +181,18 @@ router.post('/:id/add-content', async (req, res) => {
 router.delete('/:id/remove-content/:contentId', async (req, res) => {
   try {
     const { id: cartId, contentId } = req.params;
-    const pivot = await CartItem.findOne({ where: { cartId, contentId } });
+    const pivot = await CartItem.findOne({
+      where: { cartId, contentId },
+    });
     if (!pivot) {
-      return res.status(404).json({ error: 'Content not found in cart.' });
+      return res
+        .status(404)
+        .json({ error: 'Content not in cart (pivot not found).' });
     }
     await pivot.destroy();
     res.json({ success: true });
   } catch (err) {
-    console.error('Error removing content:', err);
+    console.error('Error removing content from cart:', err);
     res.status(500).json({ error: 'Server error removing content.' });
   }
 });
