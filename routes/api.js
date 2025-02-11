@@ -14,16 +14,12 @@ const tagRoutes = require('./tag');
 const stationTagPreferenceRoutes = require('./stationTagPreference');
 const reportRoutes = require('./reportRoutes');
 const onDemandRoutes = require('./onDemandRoutes');
-
-// IMPORTANT: your new clockMap routes
 const clockMapRoutes = require('./clockMapRoutes');
-
 const { generatePlaylistForStation } = require('../generatePlaylist');
 const Feedback = require('../models/Feedback');
-
 const contentLibraryRoutes = require('./contentLibraryRoutes');
-
 const verticalRoutes = require('./verticalRoutes');
+const userRoutes = require('./userRoutes');
 
 
 // Station
@@ -58,6 +54,9 @@ router.use('/content-libraries', contentLibraryRoutes);
 
 // Vertical Routes
 router.use('/verticals', verticalRoutes);
+
+// User Routes
+router.use('/users', userRoutes);
 
 // Example generate-playlist
 router.post('/generate-playlist', async (req, res) => {

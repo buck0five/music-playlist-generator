@@ -30,6 +30,9 @@ import NewClockMap from './pages/NewClockMap';
 import VerticalList from './pages/VerticalList';
 import NewVertical from './pages/NewVertical';
 import EditVertical from './pages/EditVertical';
+import UserList from './pages/UserList';
+import NewUser from './pages/NewUser';
+import EditUser from './pages/EditUser';
 
 
 function App() {
@@ -53,8 +56,8 @@ function App() {
           <Link to="/on-demand">On-Demand Playlist</Link> |{' '}
           <Link to="/clock-maps">Clock Maps</Link> |{' '}
 	  <Link to="/content-libraries">Libraries</Link> |{' '}
-	  <Link to="/verticals">Verticals</Link>
-
+	  <Link to="/verticals">Verticals</Link> |{' '}
+	  <Link to="/users">Users</Link> |{' '}
         </nav>
 
         <Routes>
@@ -102,6 +105,11 @@ function App() {
 	  <Route path="/verticals" element={<VerticalList />} />
 	  <Route path="/verticals/new" element={<NewVertical />} />
 	  <Route path="/verticals/:id/edit" element={<EditVertical />} />
+
+	  {/* Users */}
+	  <Route path="/users" element={<UserList />} />
+	  <Route path="/users/new" element={<NewUser />} />
+	  <Route path="/users/:id/edit" element={<EditUser />} />
         </Routes>
       </div>
     </Router>

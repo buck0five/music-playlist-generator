@@ -22,6 +22,8 @@ const ClockMap = require('./ClockMap');
 const ClockMapSlot = require('./ClockMapSlot');
 const ContentLibrary = require('./ContentLibrary');
 const Vertical = require('./Vertical');
+const User = require('./User');
+
 // If you have User.js / Vertical.js, you can import them too
 
 // Station <-> StationProfile
@@ -117,6 +119,19 @@ module.exports = {
 Vertical.hasMany(Station, { foreignKey: 'verticalId' });
 Station.belongsTo(Vertical, { foreignKey: 'verticalId' });
 
+// User associations
+// If each station is "owned" by a user
+User.hasMany(Station, { foreignKey: 'userId' });
+Station.belongsTo(User, { foreignKey: 'userId' });
+
+// Parent/child user relationships
+User.hasMany(User, { as: 'children', foreignKey: 'parentUserId' });
+User.belongsTo(User, { as: 'parentUser', foreignKey: 'parentUserId' });
+
+// User content libraries
+User.hasMany(ContentLibrary, { foreignKey: 'userId' });
+ContentLibrary.belongsTo(User, { foreignKey: 'userId' });
+
 // Export
 module.exports = {
   sequelize,
@@ -140,4 +155,5 @@ module.exports = {
   ClockMapSlot,
   ContentLibrary,
   Vertical,
+  User,
 };

@@ -1,53 +1,43 @@
 // models/User.js
 
-const { DataTypes } = require('sequelize');
+const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
-const bcrypt = require('bcrypt');
 
-const User = sequelize.define(
-  'User',
+class User extends Model {}
+
+User.init(
   {
-    username: {
+    id: {
+      type: DataTypes.INTEGER,
+      primaryKey: true,
+      autoIncrement: true,
+    },
+    // e.g. store manager or chain manager
+    name: {
       type: DataTypes.STRING,
       allowNull: false,
-      unique: true,
     },
     email: {
       type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
-      validate: {
-        isEmail: true,
-      },
+      allowNull: true,
     },
-    password: {
-      type: DataTypes.STRING,
-      allowNull: false,
-    },
+    // optional: "store", "chain", "admin"...
     role: {
       type: DataTypes.STRING,
-      defaultValue: 'end_user',
+      allowNull: true,
+      defaultValue: 'store', 
+    },
+    // if this user is a child of a "parent" user, references user.id
+    parentUserId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
     },
   },
   {
-    hooks: {
-      beforeCreate: async (user) => {
-        if (user.password) {
-          user.password = await bcrypt.hash(user.password, 10);
-        }
-      },
-      beforeUpdate: async (user) => {
-        if (user.changed('password')) {
-          user.password = await bcrypt.hash(user.password, 10);
-        }
-      },
-    },
+    sequelize,
+    modelName: 'User',
+    freezeTableName: true,
   }
 );
-
-// Add comparePassword method to the User model
-User.prototype.comparePassword = async function (password) {
-  return await bcrypt.compare(password, this.password);
-};
 
 module.exports = User;

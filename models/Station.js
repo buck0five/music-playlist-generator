@@ -34,11 +34,11 @@ Station.init(
       allowNull: true,
     },
 
-    // If you have userId for station manager:
-    // userId: {
-    //   type: DataTypes.INTEGER,
-    //   allowNull: true,
-    // },
+    // UserId for station manager:
+    userId: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
 
   },
   {
