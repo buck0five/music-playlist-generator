@@ -33,6 +33,8 @@ import EditVertical from './pages/EditVertical';
 import UserList from './pages/UserList';
 import NewUser from './pages/NewUser';
 import EditUser from './pages/EditUser';
+import AddContentToLibrary from './pages/AddContentToLibrary';
+import StationCartsList from './pages/StationCartsList';
 
 
 function App() {
@@ -110,6 +112,19 @@ function App() {
 	  <Route path="/users" element={<UserList />} />
 	  <Route path="/users/new" element={<NewUser />} />
 	  <Route path="/users/:id/edit" element={<EditUser />} />
+
+	  {/* Content Libraries */}
+	  <Route path="/content-libraries/:id" element={<EditContentLibrary />} />
+	  <Route
+	     path="/content-libraries/:libraryId/add-content"
+	     element={<AddContentToLibrary />}
+	    />
+	  {/* Carts for a station */}
+	  <Route path="/stations/:stationId/carts" element={<StationCartsList />} />
+	  <Route path="/stations/:stationId/carts/new" element={<NewCart />} />
+
+	  {/* Edit a cart by its ID */}
+	  <Route path="/carts/:id/edit" element={<EditCart />} />
         </Routes>
       </div>
     </Router>

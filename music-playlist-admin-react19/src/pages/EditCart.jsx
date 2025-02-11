@@ -9,15 +9,15 @@ function EditCart() {
   const navigate = useNavigate();
 
   const [cart, setCart] = useState(null);
-  const [items, setItems] = useState([]);
   const [cartName, setCartName] = useState('');
   const [category, setCategory] = useState('');
   const [stationId, setStationId] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [rotationIndex, setRotationIndex] = useState(0);
 
-  // Fields for adding a new pivot item
+  // cart items
+  const [items, setItems] = useState([]);
+
+  // new item fields
   const [newContentId, setNewContentId] = useState('');
   const [newStartDate, setNewStartDate] = useState('');
   const [newEndDate, setNewEndDate] = useState('');
@@ -25,64 +25,64 @@ function EditCart() {
   const [newStartHour, setNewStartHour] = useState('');
   const [newEndHour, setNewEndHour] = useState('');
 
-  // For editing an existing pivot item
-  const [editingItemId, setEditingItemId] = useState(null);
-  const [editStartDate, setEditStartDate] = useState('');
-  const [editEndDate, setEditEndDate] = useState('');
-  const [editDaysOfWeek, setEditDaysOfWeek] = useState('');
-  const [editStartHour, setEditStartHour] = useState('');
-  const [editEndHour, setEditEndHour] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     fetchCartData();
-  }, [id, refreshKey]);
+  }, [id]);
 
   const fetchCartData = () => {
     setLoading(true);
     axios
       .get(`http://173.230.134.186:5000/api/carts/${id}`)
       .then((res) => {
-        const { cart, items } = res.data;
-        if (!cart) {
+        setLoading(false);
+        if (!res.data || !res.data.cart) {
           setError('Cart not found');
-          setLoading(false);
           return;
         }
-        setCart(cart);
-        setItems(items || []);
-        setCartName(cart.name);
-        setCategory(cart.category || '');
-        setStationId(cart.stationId || '');
-        setLoading(false);
+        const c = res.data.cart;
+        const its = res.data.items || [];
+        setCart(c);
+        setItems(its);
+        setCartName(c.name || '');
+        setCategory(c.category || '');
+        setStationId(c.stationId || '');
+        setRotationIndex(c.rotationIndex || 0);
       })
       .catch((err) => {
         console.error(err);
-        setError('Error fetching cart');
         setLoading(false);
+        setError('Error fetching cart');
       });
   };
 
-  // Save the cart (name/category/station)
   const handleSaveCart = () => {
+    setSaving(true);
     axios
       .put(`http://173.230.134.186:5000/api/carts/${id}`, {
         name: cartName,
         category,
-        stationId,
+        stationId: stationId || null,
+        rotationIndex: parseInt(rotationIndex, 10) || 0,
       })
       .then(() => {
-        setRefreshKey((prev) => prev + 1);
+        setSaving(false);
+        fetchCartData();
       })
       .catch((err) => {
         console.error(err);
+        setSaving(false);
         setError('Error updating cart');
       });
   };
 
-  // ADD new content to cart with scheduling
+  // Add new content item to cart
   const handleAddContent = () => {
     if (!newContentId) {
-      setError('Content ID is required to add');
+      setError('Content ID is required');
       return;
     }
     setError('');
@@ -96,28 +96,26 @@ function EditCart() {
         endHour: newEndHour !== '' ? parseInt(newEndHour, 10) : null,
       })
       .then(() => {
-        // clear fields
         setNewContentId('');
         setNewStartDate('');
         setNewEndDate('');
         setNewDaysOfWeek('');
         setNewStartHour('');
         setNewEndHour('');
-        setRefreshKey((prev) => prev + 1);
+        fetchCartData();
       })
       .catch((err) => {
         console.error(err);
-        setError('Error adding content');
+        setError('Error adding content to cart');
       });
   };
 
-  // Remove content from cart
+  // Remove pivot
   const handleRemoveItem = (contentId) => {
     axios
       .delete(`http://173.230.134.186:5000/api/carts/${id}/remove-content/${contentId}`)
       .then(() => {
-        setError('');
-        setRefreshKey((prev) => prev + 1);
+        fetchCartData();
       })
       .catch((err) => {
         console.error(err);
@@ -125,56 +123,26 @@ function EditCart() {
       });
   };
 
-  // Begin editing an existing pivot item
-  const startEditingItem = (item) => {
-    setEditingItemId(item.id);
-    setEditStartDate(item.startDate || '');
-    setEditEndDate(item.endDate || '');
-    setEditDaysOfWeek(item.daysOfWeek || '');
-    setEditStartHour(item.startHour === null ? '' : item.startHour.toString());
-    setEditEndHour(item.endHour === null ? '' : item.endHour.toString());
-  };
-
-  // Cancel editing
-  const cancelEditing = () => {
-    setEditingItemId(null);
-    setEditStartDate('');
-    setEditEndDate('');
-    setEditDaysOfWeek('');
-    setEditStartHour('');
-    setEditEndHour('');
-  };
-
-  // Save pivot item scheduling
-  const handleSaveItem = () => {
-    if (!editingItemId) return;
+  // Update item pivot scheduling
+  const handleUpdateItem = (itemId, newFields) => {
     axios
-      .put(`http://173.230.134.186:5000/api/carts/${id}/update-item/${editingItemId}`, {
-        startDate: editStartDate || null,
-        endDate: editEndDate || null,
-        daysOfWeek: editDaysOfWeek || null,
-        startHour: editStartHour !== '' ? parseInt(editStartHour, 10) : null,
-        endHour: editEndHour !== '' ? parseInt(editEndHour, 10) : null,
-      })
+      .put(`http://173.230.134.186:5000/api/carts/${id}/update-item/${itemId}`, newFields)
       .then(() => {
-        cancelEditing();
-        setRefreshKey((prev) => prev + 1);
+        fetchCartData();
       })
       .catch((err) => {
         console.error(err);
-        setError('Error updating cart item scheduling');
+        setError('Error updating cart item');
       });
   };
 
-  if (loading) return <p style={{ margin: '1rem' }}>Loading cart...</p>;
-  if (!cart) return <p style={{ color: 'red' }}>{error || 'Cart not found.'}</p>;
+  if (loading) return <p>Loading cart...</p>;
+  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+  if (!cart) return <p>Cart not found</p>;
 
   return (
     <div style={{ margin: '1rem' }}>
-      <h2>Edit Cart (ID: {cart.id})</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-
-      {/* Cart Info */}
+      <h2>Edit Cart (ID: {id})</h2>
       <div style={{ marginBottom: '1rem' }}>
         <label>Cart Name: </label>
         <input
@@ -197,15 +165,24 @@ function EditCart() {
           type="number"
           value={stationId}
           onChange={(e) => setStationId(e.target.value)}
-          style={{ width: '80px', marginRight: '0.5rem' }}
+          style={{ width: '70px', marginRight: '0.5rem' }}
         />
 
-        <button onClick={handleSaveCart}>Save Cart</button>
+        <label>Rotation Index: </label>
+        <input
+          type="number"
+          value={rotationIndex}
+          onChange={(e) => setRotationIndex(e.target.value)}
+          style={{ width: '50px', marginRight: '0.5rem' }}
+        />
+
+        <button onClick={handleSaveCart} disabled={saving}>
+          {saving ? 'Saving...' : 'Save Cart'}
+        </button>
       </div>
 
       <hr />
 
-      {/* Add Content to Cart */}
       <h3>Add Content to Cart</h3>
       <div style={{ marginBottom: '0.5rem' }}>
         <label>Content ID: </label>
@@ -213,17 +190,15 @@ function EditCart() {
           type="number"
           value={newContentId}
           onChange={(e) => setNewContentId(e.target.value)}
-          style={{ width: '80px', marginRight: '0.5rem' }}
+          style={{ width: '80px', marginRight: '1rem' }}
         />
-      </div>
-      {/* Scheduling fields */}
-      <div style={{ marginBottom: '0.5rem' }}>
+
         <label>Start Date: </label>
         <input
           type="date"
           value={newStartDate}
           onChange={(e) => setNewStartDate(e.target.value)}
-          style={{ marginRight: '1rem' }}
+          style={{ marginRight: '0.5rem' }}
         />
 
         <label>End Date: </label>
@@ -231,36 +206,35 @@ function EditCart() {
           type="date"
           value={newEndDate}
           onChange={(e) => setNewEndDate(e.target.value)}
-          style={{ marginRight: '1rem' }}
+          style={{ marginRight: '0.5rem' }}
         />
-      </div>
-      <div style={{ marginBottom: '0.5rem' }}>
-        <label>Days of Week (comma separated, 0=Sun..6=Sat): </label>
+
+        <label>Days (comma): </label>
         <input
           type="text"
           value={newDaysOfWeek}
           onChange={(e) => setNewDaysOfWeek(e.target.value)}
-          style={{ width: '80px', marginRight: '1rem' }}
+          style={{ width: '70px', marginRight: '0.5rem' }}
         />
-      </div>
-      <div style={{ marginBottom: '0.5rem' }}>
-        <label>Start Hour: </label>
+
+        <label>StartHr: </label>
         <input
           type="number"
           value={newStartHour}
           onChange={(e) => setNewStartHour(e.target.value)}
-          style={{ width: '50px', marginRight: '1rem' }}
+          style={{ width: '50px', marginRight: '0.5rem' }}
         />
 
-        <label>End Hour: </label>
+        <label>EndHr: </label>
         <input
           type="number"
           value={newEndHour}
           onChange={(e) => setNewEndHour(e.target.value)}
-          style={{ width: '50px', marginRight: '1rem' }}
+          style={{ width: '50px', marginRight: '0.5rem' }}
         />
+
+        <button onClick={handleAddContent}>Add Content</button>
       </div>
-      <button onClick={handleAddContent}>Add Content</button>
 
       <hr />
 
@@ -277,84 +251,45 @@ function EditCart() {
               <th>Item ID</th>
               <th>Content ID</th>
               <th>Title</th>
-              <th>Start/End Dates</th>
-              <th>DaysOfWeek</th>
-              <th>Hrs</th>
+              <th>Scheduling</th>
               <th>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {items.map((item) => {
-              const contentObj = item.Content;
-              const isEditing = editingItemId === item.id;
-
+            {items.map((itm) => {
+              const c = itm.Content;
               return (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td>{item.contentId}</td>
-                  <td>{contentObj ? contentObj.title : 'Unknown'}</td>
-                  {isEditing ? (
-                    <>
-                      <td>
-                        <input
-                          type="date"
-                          value={editStartDate}
-                          onChange={(e) => setEditStartDate(e.target.value)}
-                          style={{ marginRight: '0.3rem' }}
-                        />
-                        <input
-                          type="date"
-                          value={editEndDate}
-                          onChange={(e) => setEditEndDate(e.target.value)}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          value={editDaysOfWeek}
-                          onChange={(e) => setEditDaysOfWeek(e.target.value)}
-                          style={{ width: '70px' }}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={editStartHour}
-                          onChange={(e) => setEditStartHour(e.target.value)}
-                          style={{ width: '40px', marginRight: '0.3rem' }}
-                        />
-                        <input
-                          type="number"
-                          value={editEndHour}
-                          onChange={(e) => setEditEndHour(e.target.value)}
-                          style={{ width: '40px' }}
-                        />
-                      </td>
-                      <td>
-                        <button onClick={handleSaveItem}>Save</button>{' '}
-                        <button onClick={cancelEditing}>Cancel</button>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td>
-                        {item.startDate || ''} - {item.endDate || ''}
-                      </td>
-                      <td>{item.daysOfWeek || ''}</td>
-                      <td>
-                        {item.startHour != null ? item.startHour : ''} -{' '}
-                        {item.endHour != null ? item.endHour : ''}
-                      </td>
-                      <td>
-                        <button onClick={() => startEditingItem(item)}>
-                          Edit
-                        </button>{' '}
-                        <button onClick={() => handleRemoveItem(item.contentId)}>
-                          Remove
-                        </button>
-                      </td>
-                    </>
-                  )}
+                <tr key={itm.id}>
+                  <td>{itm.id}</td>
+                  <td>{itm.contentId}</td>
+                  <td>{c ? c.title : '(unknown)'}</td>
+                  <td>
+                    {/* Scheduling info */}
+                    Start: {itm.startDate || ''}, End: {itm.endDate || ''},
+                    Days: {itm.daysOfWeek || ''}, Hrs: {itm.startHour || ''}-
+                    {itm.endHour || ''}
+                  </td>
+                  <td>
+                    <button
+                      onClick={() => {
+                        // example updating scheduling
+                        const updatedFields = {
+                          startDate: itm.startDate,
+                          endDate: itm.endDate,
+                          daysOfWeek: itm.daysOfWeek,
+                          startHour: itm.startHour,
+                          endHour: itm.endHour,
+                        };
+                        // Could pop up a small form or do inline editing
+                        handleUpdateItem(itm.id, updatedFields);
+                      }}
+                    >
+                      Update
+                    </button>{' '}
+                    <button onClick={() => handleRemoveItem(itm.contentId)}>
+                      Remove
+                    </button>
+                  </td>
                 </tr>
               );
             })}
@@ -362,9 +297,12 @@ function EditCart() {
         </table>
       )}
 
-      <hr style={{ margin: '1rem 0' }} />
-
-      <button onClick={() => navigate('/carts')}>Back to Cart List</button>
+      <hr />
+      {stationId && (
+        <button onClick={() => navigate(`/stations/${stationId}/carts`)}>
+          Back to Carts
+        </button>
+      )}
     </div>
   );
 }

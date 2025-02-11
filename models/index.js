@@ -23,6 +23,8 @@ const ClockMapSlot = require('./ClockMapSlot');
 const ContentLibrary = require('./ContentLibrary');
 const Vertical = require('./Vertical');
 const User = require('./User');
+const ContentLibraryContent = require('./ContentLibraryContent');
+
 
 // If you have User.js / Vertical.js, you can import them too
 
@@ -118,6 +120,18 @@ module.exports = {
 
 Vertical.hasMany(Station, { foreignKey: 'verticalId' });
 Station.belongsTo(Vertical, { foreignKey: 'verticalId' });
+
+// many to many
+Content.belongsToMany(ContentLibrary, {
+  through: ContentLibraryContent,
+  foreignKey: 'contentId',
+  otherKey: 'contentLibraryId',
+});
+ContentLibrary.belongsToMany(Content, {
+  through: ContentLibraryContent,
+  foreignKey: 'contentLibraryId',
+  otherKey: 'contentId',
+});
 
 // User associations
 // If each station is "owned" by a user

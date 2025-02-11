@@ -1,4 +1,5 @@
 // src/pages/EditContentLibrary.jsx
+
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -7,15 +8,18 @@ function EditContentLibrary() {
   const { id } = useParams(); // libraryId
   const navigate = useNavigate();
 
+  const [library, setLibrary] = useState(null);
+  const [slots, setSlots] = useState([]); // if you had "slots," ignore if not needed
+  const [error, setError] = useState('');
+  const [status, setStatus] = useState('');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [userId, setUserId] = useState('');
   const [verticalId, setVerticalId] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
 
-  // For listing content in this library
+  // The content in this library:
   const [libraryContents, setLibraryContents] = useState([]);
 
   useEffect(() => {
@@ -23,27 +27,26 @@ function EditContentLibrary() {
   }, [id]);
 
   const fetchLibrary = () => {
-    setLoading(true);
+    setError('');
+    setStatus('');
     axios
       .get(`http://173.230.134.186:5000/api/content-libraries/${id}`)
       .then((res) => {
-        setLoading(false);
-        if (!res.data || !res.data.id) {
-          setError('Library not found');
+        const lib = res.data;
+        if (!lib || !lib.id) {
+          setError('Library not found.');
           return;
         }
-        const lib = res.data;
-        setName(lib.name);
+        setLibrary(lib);
+        setName(lib.name || '');
         setDescription(lib.description || '');
         setUserId(lib.userId || '');
         setVerticalId(lib.verticalId || '');
-        // lib.Contents is the array of content in that library
-        setLibraryContents(lib.Contents || []);
+        setLibraryContents(lib.Contents || []); // important: .Contents
       })
       .catch((err) => {
         console.error(err);
-        setError('Error fetching library');
-        setLoading(false);
+        setError('Error fetching library.');
       });
   };
 
@@ -57,63 +60,90 @@ function EditContentLibrary() {
         verticalId: verticalId || null,
       })
       .then(() => {
+        setStatus('Saved!');
         setSaving(false);
-        navigate('/content-libraries');
+        fetchLibrary(); // re-fetch to update
       })
       .catch((err) => {
         console.error(err);
-        setError('Error updating library');
+        setError('Error saving library.');
         setSaving(false);
       });
   };
 
-  if (loading) return <p style={{ margin: '1rem' }}>Loading library...</p>;
-  if (error) return <p style={{ color: 'red', margin: '1rem' }}>{error}</p>;
+  // Remove content from this library => set libraryId=null
+  const handleRemoveContent = (contentId) => {
+    axios
+      .put(`http://173.230.134.186:5000/api/content/${contentId}`, {
+        libraryId: null,
+      })
+      .then(() => {
+        // filter out from local state
+        setLibraryContents((prev) => prev.filter((c) => c.id !== contentId));
+      })
+      .catch((err) => {
+        console.error(err);
+        setError('Error removing content from library.');
+      });
+  };
+
+  if (!library) return <p>{error || 'Loading library...'}</p>;
 
   return (
     <div style={{ margin: '1rem' }}>
-      <h2>Edit Content Library (ID: {id})</h2>
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ marginRight: '0.5rem' }}>Name: </label>
+      <h2>Edit Content Library: {library.name} (ID {id})</h2>
+      {error && <p style={{ color: 'red' }}>{error}</p>}
+
+      <div style={{ marginBottom: '0.5rem' }}>
+        <label>Name: </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          style={{ marginRight: '1rem' }}
+          style={{ marginLeft: '0.5rem', marginRight: '1rem' }}
         />
-        <br />
-        <label style={{ marginRight: '0.5rem' }}>Description: </label>
+        <label>Description: </label>
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          style={{ marginRight: '1rem', width: '300px' }}
+          style={{ marginLeft: '0.5rem', width: '300px' }}
         />
-        <br />
-        <label style={{ marginRight: '0.5rem' }}>User ID: </label>
+      </div>
+
+      <div style={{ marginBottom: '0.5rem' }}>
+        <label>User ID: </label>
         <input
           type="number"
           value={userId}
           onChange={(e) => setUserId(e.target.value)}
-          style={{ marginRight: '1rem', width: '80px' }}
+          style={{ marginLeft: '0.5rem', width: '80px', marginRight: '1rem' }}
         />
-        <br />
-        <label style={{ marginRight: '0.5rem' }}>Vertical ID: </label>
+
+        <label>Vertical ID: </label>
         <input
           type="number"
           value={verticalId}
           onChange={(e) => setVerticalId(e.target.value)}
-          style={{ marginRight: '1rem', width: '80px' }}
+          style={{ marginLeft: '0.5rem', width: '80px' }}
         />
       </div>
 
       <button onClick={handleSave} disabled={saving}>
         {saving ? 'Saving...' : 'Save Library'}
       </button>
+      {status && <span style={{ marginLeft: '1rem' }}>{status}</span>}
 
       <hr />
 
       <h3>Library Contents</h3>
+      <button
+        onClick={() => navigate(`/content-libraries/${id}/add-content`)}
+        style={{ marginBottom: '0.5rem' }}
+      >
+        Add Existing Content
+      </button>
+
       {libraryContents.length === 0 ? (
         <p>No content in this library.</p>
       ) : (
@@ -128,6 +158,7 @@ function EditContentLibrary() {
               <th>Title</th>
               <th>Type</th>
               <th>Filename</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -137,6 +168,11 @@ function EditContentLibrary() {
                 <td>{c.title}</td>
                 <td>{c.contentType}</td>
                 <td>{c.fileName || ''}</td>
+                <td>
+                  <button onClick={() => handleRemoveContent(c.id)}>
+                    Remove
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

@@ -1,4 +1,5 @@
 // models/Content.js
+
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
@@ -6,7 +7,6 @@ class Content extends Model {}
 
 Content.init(
   {
-    // Preserved from your repo:
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
@@ -20,8 +20,7 @@ Content.init(
       type: DataTypes.STRING,
       allowNull: false,
     },
-    // If your repo had contentTypeId, keep it. Otherwise remove. 
-    // This line was present in your older code, so let's preserve it:
+    // any extra fields your repo has:
     contentTypeId: {
       type: DataTypes.INTEGER,
       allowNull: true,
@@ -44,9 +43,25 @@ Content.init(
       allowNull: true,
     },
 
-    // NEW: link to ContentLibrary (if null => global)
-    libraryId: {
+    // advanced scheduling fields if your repo has them:
+    startDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    endDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+    dailyStartHour: {
       type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    dailyEndHour: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+    },
+    visibility: {
+      type: DataTypes.STRING,
       allowNull: true,
     },
   },
