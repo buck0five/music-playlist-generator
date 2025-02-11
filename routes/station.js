@@ -31,7 +31,7 @@ router.get('/:id', async (req, res) => {
 // POST /api/stations
 router.post('/', async (req, res) => {
   try {
-    const { name, defaultClockTemplateId, clockMapId, verticalId } = req.body;
+    const { name, defaultClockTemplateId, clockMapId, verticalId, userId } = req.body;
     if (!name) {
       return res.status(400).json({ error: 'Station name is required' });
     }
@@ -40,6 +40,7 @@ router.post('/', async (req, res) => {
       defaultClockTemplateId: defaultClockTemplateId || null,
       clockMapId: clockMapId || null,
       verticalId: verticalId || null,
+      userId: userId || null,
     });
     res.json(newStation);
   } catch (err) {
@@ -52,7 +53,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const stationId = req.params.id;
-    const { name, defaultClockTemplateId, clockMapId, verticalId } = req.body;
+    const { name, defaultClockTemplateId, clockMapId, verticalId, userId } = req.body;
 
     const station = await Station.findByPk(stationId);
     if (!station) {
@@ -60,10 +61,10 @@ router.put('/:id', async (req, res) => {
     }
 
     if (name !== undefined) station.name = name;
-    if (defaultClockTemplateId !== undefined)
-      station.defaultClockTemplateId = defaultClockTemplateId;
+    if (defaultClockTemplateId !== undefined) station.defaultClockTemplateId = defaultClockTemplateId;
     if (clockMapId !== undefined) station.clockMapId = clockMapId;
     if (verticalId !== undefined) station.verticalId = verticalId;
+    if (userId !== undefined) station.userId = userId;
 
     await station.save();
     res.json(station);

@@ -124,18 +124,31 @@ function EditUser() {
       <button onClick={handleSave} disabled={saving}>
         {saving ? 'Saving...' : 'Save User'}
       </button>
-
       <hr />
       <button onClick={() => navigate('/users')}>Back to Users</button>
 
       <hr />
       <h3>Child Accounts</h3>
+      <p>
+        <button
+          onClick={() => navigate(`/users/new?parentId=${id}`)}
+          style={{ marginBottom: '0.5rem' }}
+        >
+          Add Child Account
+        </button>
+      </p>
       {children.length === 0 && <p>No child accounts.</p>}
       {children.length > 0 && (
         <ul>
           {children.map((child) => (
             <li key={child.id}>
-              [ID: {child.id}] {child.name} - role: {child.role}
+              [ID: {child.id}] {child.name} (role: {child.role}){' '}
+              <button
+                onClick={() => navigate(`/users/${child.id}/edit`)}
+                style={{ marginLeft: '0.5rem' }}
+              >
+                Edit
+              </button>
             </li>
           ))}
         </ul>

@@ -2,6 +2,9 @@
 
 const {
   sequelize,
+  // Models
+  User,
+  Vertical,
   Station,
   StationProfile,
   StationSchedule,
@@ -20,163 +23,190 @@ const {
   CartItem,
   ClockMap,
   ClockMapSlot,
+  ContentLibrary,
 } = require('./models');
 
 async function seed() {
   try {
-    // 1) Force sync (DROP all, recreate)
+    // Force sync to drop & recreate tables
     await sequelize.sync({ force: true });
+    console.log('Database synced with force: true');
 
-    // 2) Create a Station #1 (using default clock template)
+    // ========== 1) Create Some Users ==========
+    // user #1: top-level admin
+    const adminUser = await User.create({
+      name: 'Alice Admin',
+      email: 'alice@admin.com',
+      role: 'admin',
+      parentUserId: null,
+    });
+
+    // user #2: multi-store "chain" user (no parent)
+    const chainUser = await User.create({
+      name: 'Bob ChainUser',
+      email: 'bob@chain.com',
+      role: 'chain',
+      parentUserId: null,
+    });
+
+    // user #3: store user, child of the chain user
+    const storeUser1 = await User.create({
+      name: 'Carol StoreUser1',
+      email: 'carol@store.com',
+      role: 'store',
+      parentUserId: chainUser.id,
+    });
+
+    // user #4: another store user, same chain
+    const storeUser2 = await User.create({
+      name: 'Dan StoreUser2',
+      email: 'dan@store.com',
+      role: 'store',
+      parentUserId: chainUser.id,
+    });
+
+    // ========== 2) Create Some Verticals ==========
+    const petVertical = await Vertical.create({
+      name: 'Pet Stores',
+      description: 'All pet store stations and content',
+    });
+    const hardwareVertical = await Vertical.create({
+      name: 'Hardware Stores',
+      description: 'All hardware store stations and content',
+    });
+
+    // ========== 3) Create Some Stations ==========
+    // Station #1 belongs to storeUser1, uses petVertical
     const station1 = await Station.create({
-      name: 'Station #1',
-      // defaultClockTemplateId: will set below once we create a clock template
-      clockMapId: null, // not using clockMap for station #1 in this example
+      name: 'Station #1 (Pet)',
+      userId: storeUser1.id,
+      verticalId: petVertical.id,
+      defaultClockTemplateId: null, // or set to some ID later
+      clockMapId: null,
     });
 
-    // 3) Create a second Station #2 that references a Clock Map (multi-day approach)
+    // Station #2 belongs to storeUser2, uses hardwareVertical
     const station2 = await Station.create({
-      name: 'Station #2',
-      // defaultClockTemplateId: null
-      clockMapId: null, // we will set this after creating a clockMap
+      name: 'Station #2 (Hardware)',
+      userId: storeUser2.id,
+      verticalId: hardwareVertical.id,
+      defaultClockTemplateId: null,
+      clockMapId: null,
     });
 
-    // 4) Create a Format
-    const rockFormat = await Format.create({ name: 'Rock' });
+    // ========== 4) Create Some Content Libraries ==========
+    // library #1: global music library (no userId, no verticalId)
+    const globalMusicLib = await ContentLibrary.create({
+      name: 'Global Music',
+      description: 'Music shared globally',
+      userId: null,
+      verticalId: null,
+    });
 
-    // 5) Create some Content: 2 songs, 2 ads
-    const songA = await Content.create({
-      title: 'Rock Anthem 1',
+    // library #2: pet vertical library
+    const petLib = await ContentLibrary.create({
+      name: 'Pet Store Ads',
+      description: 'Ads only for pet stores',
+      userId: null,
+      verticalId: petVertical.id, // belongs to Pet Vertical
+    });
+
+    // library #3: hardware vertical library
+    const hardwareLib = await ContentLibrary.create({
+      name: 'Hardware Store Ads',
+      description: 'Ads only for hardware stores',
+      userId: null,
+      verticalId: hardwareVertical.id,
+    });
+
+    // library #4: private library for storeUser1
+    const user1Lib = await ContentLibrary.create({
+      name: 'User1 Private Library',
+      description: 'StoreUser1 custom audio',
+      userId: storeUser1.id,
+      verticalId: null,
+    });
+
+    // ========== 5) Create Some Content ==========
+    // some global music (libraryId = globalMusicLib)
+    const globalSongA = await Content.create({
+      title: 'Global Rock Song 1',
       contentType: 'song',
-      formatId: rockFormat.id,
+      libraryId: globalMusicLib.id,
       duration: 180,
+      fileName: 'global_rock_1.mp3',
       score: 1.0,
-      fileName: 'rock_anthem_1.mp3',
     });
-    const songB = await Content.create({
-      title: 'Rock Anthem 2',
+    const globalSongB = await Content.create({
+      title: 'Global Rock Song 2',
       contentType: 'song',
-      formatId: rockFormat.id,
+      libraryId: globalMusicLib.id,
       duration: 200,
+      fileName: 'global_rock_2.mp3',
       score: 1.0,
-      fileName: 'rock_anthem_2.mp3',
     });
-    const adA = await Content.create({
-      title: 'Car Dealership Ad',
+
+    // pet store ads
+    const petAd1 = await Content.create({
+      title: 'Pet Store Ad #1',
       contentType: 'ad',
+      libraryId: petLib.id,
       duration: 30,
+      fileName: 'pet_ad_1.mp3',
       score: 1.0,
-      fileName: 'car_ad.mp3',
     });
-    const adB = await Content.create({
-      title: 'Local Vendor Ad',
+
+    // hardware store ads
+    const hardwareAd1 = await Content.create({
+      title: 'Hardware Ad #1',
       contentType: 'ad',
+      libraryId: hardwareLib.id,
       duration: 25,
+      fileName: 'hardware_ad_1.mp3',
       score: 1.0,
-      fileName: 'vendor_ad.mp3',
     });
 
-    // 6) Create a single ClockTemplate #1 for station #1
-    const template1 = await ClockTemplate.create({
-      templateName: 'Default Hour for Station #1',
-      description: 'Song -> Cart -> Song example',
-    });
-    // Create 3 slots
-    await ClockTemplateSlot.create({
-      clockTemplateId: template1.id,
-      slotType: 'song',
-      minuteOffset: 0,
-      cartId: null,
-    });
-    await ClockTemplateSlot.create({
-      clockTemplateId: template1.id,
-      slotType: 'cart',
-      minuteOffset: 10,
-      cartId: null, // will fill soon
-    });
-    await ClockTemplateSlot.create({
-      clockTemplateId: template1.id,
-      slotType: 'song',
-      minuteOffset: 20,
-      cartId: null,
+    // private content for user1
+    const user1ContentA = await Content.create({
+      title: 'User1 Custom Jingle',
+      contentType: 'jingle',
+      libraryId: user1Lib.id,
+      duration: 15,
+      fileName: 'user1_jingle.mp3',
+      score: 1.0,
     });
 
-    // assign that to station1
-    station1.defaultClockTemplateId = template1.id;
-    await station1.save();
-
-    // 7) Create a Cart for station #1 (e.g., "Vendor Cart")
-    const cart1 = await Cart.create({
-      name: 'Vendor Cart',
-      category: 'VEN1',
-      stationId: station1.id,
+    // ========== 6) Create a Cart for station1, referencing user1's station ==========
+    const station1CartA = await Cart.create({
+      name: 'Station1 Ad Cart',
+      category: 'ADS',
+      stationId: station1.id, // belongs to station #1
       rotationIndex: 0,
     });
-    // Attach some ads
-    await CartItem.create({ cartId: cart1.id, contentId: adA.id });
-    await CartItem.create({ cartId: cart1.id, contentId: adB.id });
 
-    // set the cartId in that second slot of template1
-    const slotCart = await ClockTemplateSlot.findOne({
-      where: { clockTemplateId: template1.id, minuteOffset: 10 },
+    // Add cart items referencing petAd1 and user1ContentA
+    await CartItem.create({
+      cartId: station1CartA.id,
+      contentId: petAd1.id, // from library #2
     });
-    slotCart.cartId = cart1.id;
-    await slotCart.save();
-
-    // 8) Create a ClockMap for station #2 (multi-day approach)
-    const clockMap1 = await ClockMap.create({
-      name: 'Weekday/Weekend Map',
-      description: 'Assign different templates to different days/hours',
-    });
-    // for dayOfWeek=1 (Mon), hour=9 => clockTemplateId= template1 (just reusing)
-    await ClockMapSlot.create({
-      clockMapId: clockMap1.id,
-      dayOfWeek: 1, // Monday
-      hour: 9,
-      clockTemplateId: template1.id,
-    });
-    // e.g. for dayOfWeek=2 (Tue), hour=9 => same template
-    await ClockMapSlot.create({
-      clockMapId: clockMap1.id,
-      dayOfWeek: 2,
-      hour: 9,
-      clockTemplateId: template1.id,
+    await CartItem.create({
+      cartId: station1CartA.id,
+      contentId: user1ContentA.id, // from user1's private lib
     });
 
-    // create a second clock template just to illustrate variety
-    const template2 = await ClockTemplate.create({
-      templateName: 'LateNight Template',
-      description: '2 songs, 1 ad in between',
+    // ========== 7) Optionally create a Cart for station2, referencing hardwareAd1 ==========
+    const station2Cart = await Cart.create({
+      name: 'Station2 Ad Cart',
+      category: 'ADS',
+      stationId: station2.id,
+      rotationIndex: 0,
     });
-    await ClockTemplateSlot.create({
-      clockTemplateId: template2.id,
-      slotType: 'song',
-      minuteOffset: 0,
-    });
-    await ClockTemplateSlot.create({
-      clockTemplateId: template2.id,
-      slotType: 'cart',
-      minuteOffset: 15,
-    });
-    await ClockTemplateSlot.create({
-      clockTemplateId: template2.id,
-      slotType: 'song',
-      minuteOffset: 30,
+    await CartItem.create({
+      cartId: station2Cart.id,
+      contentId: hardwareAd1.id,
     });
 
-    // For dayOfWeek=1 (Mon), hour=23 => template2
-    await ClockMapSlot.create({
-      clockMapId: clockMap1.id,
-      dayOfWeek: 1,
-      hour: 23,
-      clockTemplateId: template2.id,
-    });
-
-    // assign clockMap1 to station2
-    station2.clockMapId = clockMap1.id;
-    await station2.save();
-
-    console.log('Seeding complete.');
+    console.log('Seed data created successfully.');
   } catch (error) {
     console.error('Seeding error:', error);
   } finally {

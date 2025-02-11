@@ -12,20 +12,20 @@ function EditStation() {
   const [defaultClockTemplateId, setDefaultClockTemplateId] = useState('');
   const [clockMapId, setClockMapId] = useState('');
   const [verticalId, setVerticalId] = useState('');
+  const [userId, setUserId] = useState('');
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // We'll store the entire station object if needed:
-  const [station, setStation] = useState(null);
-
-  // For listing verticals
+  // For listing verticals and users
   const [verticals, setVerticals] = useState([]);
+  const [users, setUsers] = useState([]);
 
   useEffect(() => {
     fetchStationData();
     fetchVerticals();
+    fetchUsers();
   }, [id]);
 
   const fetchStationData = () => {
@@ -39,11 +39,11 @@ function EditStation() {
           return;
         }
         const st = res.data;
-        setStation(st);
         setStationName(st.name || '');
         setDefaultClockTemplateId(st.defaultClockTemplateId || '');
         setClockMapId(st.clockMapId || '');
         setVerticalId(st.verticalId || '');
+        setUserId(st.userId || '');
       })
       .catch((err) => {
         console.error(err);
@@ -55,15 +55,22 @@ function EditStation() {
   const fetchVerticals = () => {
     axios
       .get('http://173.230.134.186:5000/api/verticals')
-      .then((res) => {
-        setVerticals(res.data || []);
-      })
-      .catch((err) => {
-        console.error(err);
-      });
+      .then((res) => setVerticals(res.data || []))
+      .catch((err) => console.error(err));
+  };
+
+  const fetchUsers = () => {
+    axios
+      .get('http://173.230.134.186:5000/api/users')
+      .then((res) => setUsers(res.data || []))
+      .catch((err) => console.error(err));
   };
 
   const handleSave = () => {
+    if (!stationName) {
+      setError('Station name is required.');
+      return;
+    }
     setSaving(true);
     axios
       .put(`http://173.230.134.186:5000/api/stations/${id}`, {
@@ -71,6 +78,7 @@ function EditStation() {
         defaultClockTemplateId: defaultClockTemplateId || null,
         clockMapId: clockMapId || null,
         verticalId: verticalId || null,
+        userId: userId || null,
       })
       .then(() => {
         setSaving(false);
@@ -89,7 +97,8 @@ function EditStation() {
   return (
     <div style={{ margin: '1rem' }}>
       <h2>Edit Station (ID: {id})</h2>
-      <div style={{ marginBottom: '1rem' }}>
+
+      <div style={{ marginBottom: '0.5rem' }}>
         <label style={{ marginRight: '0.5rem' }}>Name:</label>
         <input
           type="text"
@@ -97,8 +106,9 @@ function EditStation() {
           onChange={(e) => setStationName(e.target.value)}
           style={{ marginRight: '1rem' }}
         />
-        <br />
+      </div>
 
+      <div style={{ marginBottom: '0.5rem' }}>
         <label style={{ marginRight: '0.5rem' }}>
           Default Clock Template ID:
         </label>
@@ -108,8 +118,9 @@ function EditStation() {
           onChange={(e) => setDefaultClockTemplateId(e.target.value)}
           style={{ marginRight: '1rem' }}
         />
-        <br />
+      </div>
 
+      <div style={{ marginBottom: '0.5rem' }}>
         <label style={{ marginRight: '0.5rem' }}>Clock Map ID:</label>
         <input
           type="number"
@@ -117,8 +128,10 @@ function EditStation() {
           onChange={(e) => setClockMapId(e.target.value)}
           style={{ marginRight: '1rem' }}
         />
-        <br />
+      </div>
 
+      {/* Vertical Dropdown */}
+      <div style={{ marginBottom: '0.5rem' }}>
         <label style={{ marginRight: '0.5rem' }}>Vertical:</label>
         <select
           value={verticalId}
@@ -129,6 +142,23 @@ function EditStation() {
           {verticals.map((v) => (
             <option key={v.id} value={v.id}>
               {v.name} (ID {v.id})
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* User Dropdown */}
+      <div style={{ marginBottom: '0.5rem' }}>
+        <label style={{ marginRight: '0.5rem' }}>User:</label>
+        <select
+          value={userId}
+          onChange={(e) => setUserId(e.target.value)}
+          style={{ marginRight: '1rem' }}
+        >
+          <option value="">(none)</option>
+          {users.map((u) => (
+            <option key={u.id} value={u.id}>
+              {u.name} (ID {u.id}, role={u.role})
             </option>
           ))}
         </select>

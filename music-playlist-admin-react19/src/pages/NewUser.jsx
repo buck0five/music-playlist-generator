@@ -1,17 +1,28 @@
 // src/pages/NewUser.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function NewUser() {
   const navigate = useNavigate();
+  const location = useLocation();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('store');
   const [parentUserId, setParentUserId] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // On mount, parse "?parentId=xxx" if present
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const pId = params.get('parentId');
+    if (pId) {
+      setParentUserId(pId);
+    }
+  }, [location.search]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -20,6 +31,7 @@ function NewUser() {
       return;
     }
     setSaving(true);
+
     axios
       .post('http://173.230.134.186:5000/api/users', {
         name,
@@ -42,6 +54,7 @@ function NewUser() {
     <div style={{ margin: '1rem' }}>
       <h2>Create New User</h2>
       {error && <p style={{ color: 'red' }}>{error}</p>}
+
       <form onSubmit={handleSubmit}>
         <div style={{ marginBottom: '0.5rem' }}>
           <label>Name: </label>
@@ -52,6 +65,7 @@ function NewUser() {
             style={{ marginLeft: '0.5rem' }}
           />
         </div>
+
         <div style={{ marginBottom: '0.5rem' }}>
           <label>Email: </label>
           <input
@@ -61,6 +75,7 @@ function NewUser() {
             style={{ marginLeft: '0.5rem' }}
           />
         </div>
+
         <div style={{ marginBottom: '0.5rem' }}>
           <label>Role: </label>
           <select
@@ -73,6 +88,7 @@ function NewUser() {
             <option value="admin">admin</option>
           </select>
         </div>
+
         <div style={{ marginBottom: '0.5rem' }}>
           <label>Parent User ID: </label>
           <input
@@ -82,9 +98,10 @@ function NewUser() {
             style={{ marginLeft: '0.5rem', width: '80px' }}
           />
           <span style={{ marginLeft: '0.5rem' }}>
-            (Leave blank if no parent)
+            (Leave blank if top-level user)
           </span>
         </div>
+
         <button type="submit" disabled={saving}>
           {saving ? 'Creating...' : 'Create User'}
         </button>
