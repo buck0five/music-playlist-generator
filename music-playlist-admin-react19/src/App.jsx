@@ -60,6 +60,7 @@ function App() {
         <Routes>
           {/* Stations */}
           <Route path="/" element={<StationsList />} />
+	  <Route path="/stations" element={<StationsList />} />
           <Route path="/stations/new" element={<NewStation />} />
           <Route path="/stations/:id/edit" element={<EditStation />} />
 
