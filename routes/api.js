@@ -23,6 +23,8 @@ const Feedback = require('../models/Feedback');
 
 const contentLibraryRoutes = require('./contentLibraryRoutes');
 
+const verticalRoutes = require('./verticalRoutes');
+
 
 // Station
 if (stationRoutes) router.use('/stations', stationRoutes);
@@ -54,6 +56,8 @@ router.use('/clock-maps', clockMapRoutes);
 // Content Libraries
 router.use('/content-libraries', contentLibraryRoutes);
 
+// Vertical Routes
+router.use('/verticals', verticalRoutes);
 
 // Example generate-playlist
 router.post('/generate-playlist', async (req, res) => {

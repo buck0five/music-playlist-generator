@@ -24,11 +24,13 @@ import OnDemandPlaylist from './pages/OnDemandPlaylist';
 import ContentLibraryList from './pages/ContentLibraryList';
 import NewContentLibrary from './pages/NewContentLibrary';
 import EditContentLibrary from './pages/EditContentLibrary';
-
-// Clock Maps
 import ClockMapList from './pages/ClockMapList';
 import ClockMapEditor from './pages/ClockMapEditor';
 import NewClockMap from './pages/NewClockMap';
+import VerticalList from './pages/VerticalList';
+import NewVertical from './pages/NewVertical';
+import EditVertical from './pages/EditVertical';
+
 
 function App() {
   return (
@@ -51,6 +53,7 @@ function App() {
           <Link to="/on-demand">On-Demand Playlist</Link> |{' '}
           <Link to="/clock-maps">Clock Maps</Link> |{' '}
 	  <Link to="/content-libraries">Libraries</Link> |{' '}
+	  <Link to="/verticals">Verticals</Link>
 
         </nav>
 
@@ -93,6 +96,11 @@ function App() {
 	  <Route path="/content-libraries" element={<ContentLibraryList />} />
 	  <Route path="/content-libraries/new" element={<NewContentLibrary />} />
 	  <Route path="/content-libraries/:id/edit" element={<EditContentLibrary />} />
+
+	  {/* Verticals */}
+	  <Route path="/verticals" element={<VerticalList />} />
+	  <Route path="/verticals/new" element={<NewVertical />} />
+	  <Route path="/verticals/:id/edit" element={<EditVertical />} />
         </Routes>
       </div>
     </Router>

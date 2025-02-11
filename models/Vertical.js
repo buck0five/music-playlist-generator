@@ -14,7 +14,7 @@ Vertical.init(
     },
     name: {
       type: DataTypes.STRING,
-      allowNull: false, // e.g. "Pet Stores"
+      allowNull: false,
     },
     description: {
       type: DataTypes.STRING,
