@@ -1,14 +1,57 @@
-// src/pages/EditClockTemplate.jsx
-
 import React, { useEffect, useState } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+
+// Sortable item component
+const SortableItem = ({ id, slotType, minuteOffset, cartId }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    border: '1px solid #ccc',
+    padding: '10px',
+    margin: '5px 0',
+    backgroundColor: 'white',
+    borderRadius: '4px',
+    cursor: 'grab',
+    userSelect: 'none'
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <div>Type: {slotType}</div>
+      <div>Minute Offset: {minuteOffset}</div>
+      {cartId && <div>Cart ID: {cartId}</div>}
+    </div>
+  );
+};
 
 function EditClockTemplate() {
   const { id } = useParams();
   const navigate = useNavigate();
-
   const [templateName, setTemplateName] = useState('');
   const [description, setDescription] = useState('');
   const [slots, setSlots] = useState([]);
@@ -17,189 +60,186 @@ function EditClockTemplate() {
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [savingSlots, setSavingSlots] = useState(false);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
   useEffect(() => {
     fetchClockTemplate();
   }, [id]);
 
-  const fetchClockTemplate = () => {
+  const fetchClockTemplate = async () => {
     setLoading(true);
     setError('');
-    axios
-      .get(`http://173.230.134.186:5000/api/clock-templates/${id}`)
-      .then((res) => {
-        const ct = res.data;
-        if (!ct || !ct.id) {
-          setError('Clock template not found.');
-          setLoading(false);
-          return;
-        }
-        setTemplateName(ct.templateName || '');
-        setDescription(ct.description || '');
-        if (ct.slots && ct.slots.length) {
-          const sorted = [...ct.slots].sort((a, b) => a.minuteOffset - b.minuteOffset);
-          setSlots(sorted);
-        } else {
-          setSlots([]);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error(err);
-        setError('Error fetching clock template.');
-        setLoading(false);
-      });
+    try {
+      const res = await axios.get(`http://173.230.134.186:5000/api/clock-templates/${id}`);
+      const ct = res.data;
+      
+      if (!ct || !ct.id) {
+        setError('Clock template not found.');
+        return;
+      }
+
+      setTemplateName(ct.templateName || '');
+      setDescription(ct.description || '');
+      
+      if (ct.slots && ct.slots.length) {
+        const sorted = [...ct.slots].sort((a, b) => a.minuteOffset - b.minuteOffset);
+        setSlots(sorted);
+      } else {
+        // Add some default slots if none exist
+        setSlots([
+          { id: '1', slotType: 'song', minuteOffset: 0 },
+          { id: '2', slotType: 'cart', minuteOffset: 5, cartId: null },
+          { id: '3', slotType: 'song', minuteOffset: 10 },
+        ]);
+      }
+    } catch (err) {
+      console.error('Error fetching template:', err);
+      setError('Error fetching clock template.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleSaveTemplate = () => {
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over.id) {
+      setSlots((items) => {
+        const oldIndex = items.findIndex(item => item.id.toString() === active.id);
+        const newIndex = items.findIndex(item => item.id.toString() === over.id);
+        
+        return arrayMove(items, oldIndex, newIndex).map((item, index) => ({
+          ...item,
+          minuteOffset: index * 5
+        }));
+      });
+    }
+  };
+
+  const handleSaveTemplate = async () => {
     setSavingTemplate(true);
-    axios
-      .put(`http://173.230.134.186:5000/api/clock-templates/${id}`, {
+    try {
+      await axios.put(`http://173.230.134.186:5000/api/clock-templates/${id}`, {
         templateName,
         description,
-      })
-      .then(() => {
-        setSavingTemplate(false);
-        alert('Template info updated!');
-      })
-      .catch((err) => {
-        console.error(err);
-        setSavingTemplate(false);
-        setError('Error updating template info.');
       });
+      alert('Template info updated!');
+    } catch (err) {
+      console.error('Error updating template:', err);
+      setError('Error updating template info.');
+    } finally {
+      setSavingTemplate(false);
+    }
   };
 
-  const handleDragEnd = (result) => {
-    if (!result.destination) return;
-    const newSlots = Array.from(slots);
-    const [moved] = newSlots.splice(result.source.index, 1);
-    newSlots.splice(result.destination.index, 0, moved);
-
-    newSlots.forEach((slot, idx) => {
-      slot.minuteOffset = idx * 5;
-    });
-    setSlots(newSlots);
-  };
-
-  const handleSaveSlots = () => {
+  const handleSaveSlots = async () => {
     setSavingSlots(true);
-    const payload = {
-      slots: slots.map((s) => ({
-        id: s.id,
-        minuteOffset: s.minuteOffset,
-        slotType: s.slotType,
-        cartId: s.cartId || null,
-      })),
-    };
-    axios
-      .put(`http://173.230.134.186:5000/api/clock-templates/${id}/slots`, payload)
-      .then(() => {
-        setSavingSlots(false);
-        alert('Slots updated successfully!');
-      })
-      .catch((err) => {
-        console.error(err);
-        setSavingSlots(false);
-        setError('Error saving slot reorder.');
+    try {
+      await axios.put(`http://173.230.134.186:5000/api/clock-templates/${id}/slots`, {
+        slots: slots.map(s => ({
+          id: s.id,
+          minuteOffset: s.minuteOffset,
+          slotType: s.slotType,
+          cartId: s.cartId || null,
+        })),
       });
+      alert('Slots updated successfully!');
+    } catch (err) {
+      console.error('Error saving slots:', err);
+      setError('Error saving slot updates.');
+    } finally {
+      setSavingSlots(false);
+    }
   };
 
-  if (loading) return <p style={{ margin: '1rem' }}>Loading clock template...</p>;
-  if (error) return <p style={{ color: 'red', margin: '1rem' }}>{error}</p>;
+  if (loading) return <p>Loading clock template...</p>;
+  if (error) return <p style={{ color: 'red' }}>{error}</p>;
 
   return (
-    <div style={{ margin: '1rem' }}>
+    <div style={{ padding: '20px' }}>
       <h2>Edit Clock Template (ID: {id})</h2>
-
-      <div style={{ marginBottom: '1rem' }}>
-        <label style={{ display: 'block', marginBottom: '0.3rem' }}>
-          Template Name:
-        </label>
-        <input
-          type="text"
-          value={templateName}
-          onChange={(e) => setTemplateName(e.target.value)}
-          style={{ width: '300px', marginBottom: '0.5rem' }}
-        />
-        <br />
-        <label style={{ display: 'block', marginBottom: '0.3rem' }}>
-          Description:
-        </label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={3}
-          style={{ width: '300px' }}
-        />
-
-        <div style={{ marginTop: '0.5rem' }}>
-          <button onClick={handleSaveTemplate} disabled={savingTemplate}>
-            {savingTemplate ? 'Saving...' : 'Update Template Info'}
-          </button>
+      
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Template Name:</label>
+          <input
+            type="text"
+            value={templateName}
+            onChange={(e) => setTemplateName(e.target.value)}
+            style={{ width: '300px', padding: '5px' }}
+          />
         </div>
+        
+        <div style={{ marginBottom: '10px' }}>
+          <label style={{ display: 'block', marginBottom: '5px' }}>Description:</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            style={{ width: '300px', height: '100px', padding: '5px' }}
+          />
+        </div>
+        
+        <button 
+          onClick={handleSaveTemplate}
+          disabled={savingTemplate}
+          style={{ marginTop: '10px', padding: '5px 10px' }}
+        >
+          {savingTemplate ? 'Saving...' : 'Update Template Info'}
+        </button>
       </div>
 
-      <hr style={{ margin: '1rem 0' }} />
-
       <h3>Slots (Drag & Drop to Reorder)</h3>
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="slotsDroppable">
-          {(provided) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              style={{
-                padding: '1rem',
-                background: '#fafafa',
-                width: '350px',
-                minHeight: '100px',
-              }}
-            >
-              {slots.map((slot, index) => (
-                <Draggable
-                  key={slot.id.toString()}
-                  draggableId={slot.id.toString()}
-                  index={index}
-                >
-                  {(provided2) => (
-                    <div
-                      ref={provided2.innerRef}
-                      {...provided2.draggableProps}
-                      {...provided2.dragHandleProps}
-                      style={{
-                        border: '1px solid #ccc',
-                        background: '#fff',
-                        marginBottom: '0.5rem',
-                        padding: '0.5rem',
-                        ...provided2.draggableProps.style,
-                      }}
-                    >
-                      <p style={{ margin: 0 }}>
-                        <strong>ID:</strong> {slot.id} <br />
-                        <strong>Offset:</strong> {slot.minuteOffset} min <br />
-                        <strong>Type:</strong> {slot.slotType}{' '}
-                        {slot.cartId ? `(Cart ID: ${slot.cartId})` : ''}
-                      </p>
-                    </div>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+      <DndContext 
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext 
+          items={slots.map(s => s.id.toString())}
+          strategy={verticalListSortingStrategy}
+        >
+          <div style={{ 
+            padding: '20px',
+            backgroundColor: '#f5f5f5',
+            borderRadius: '4px',
+            minHeight: '200px'
+          }}>
+            {slots.map((slot) => (
+              <SortableItem
+                key={slot.id}
+                id={slot.id.toString()}
+                slotType={slot.slotType}
+                minuteOffset={slot.minuteOffset}
+                cartId={slot.cartId}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
-      <div style={{ marginTop: '1rem' }}>
-        <button onClick={handleSaveSlots} disabled={savingSlots}>
+      <div style={{ marginTop: '20px' }}>
+        <button 
+          onClick={handleSaveSlots}
+          disabled={savingSlots}
+          style={{ padding: '5px 10px' }}
+        >
           {savingSlots ? 'Saving...' : 'Save Slots'}
         </button>
       </div>
 
-      <hr style={{ margin: '1rem 0' }} />
-
-      <button onClick={() => navigate('/clock-templates')} style={{ marginTop: '1rem' }}>
-        Back to Clock Templates
-      </button>
+      <div style={{ marginTop: '20px' }}>
+        <button 
+          onClick={() => navigate('/clock-templates')}
+          style={{ padding: '5px 10px' }}
+        >
+          Back to Clock Templates
+        </button>
+      </div>
     </div>
   );
 }

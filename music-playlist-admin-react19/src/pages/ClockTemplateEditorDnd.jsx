@@ -1,222 +1,172 @@
-// src/pages/ClockTemplateEditorDnd.jsx
-
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import axios from 'axios';
-import { useParams } from 'react-router-dom';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { useParams, useNavigate } from 'react-router-dom';
 
-function ClockTemplateEditorDnd() {
-  const { id } = useParams(); // clockTemplateId
-  const [template, setTemplate] = useState(null);
-  const [slots, setSlots] = useState([]);
-  const [error, setError] = useState('');
-  const [saving, setSaving] = useState(false);
+// Sortable slot item component
+const SortableSlot = ({ id, content, type }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
 
-  // Station ID - optional if you want to filter carts. 
-  // If your logic gets stationId from the clock template or from user input, adapt accordingly:
-  const [stationId, setStationId] = useState('1'); // example default
-
-  // We'll store the station's carts if we want them for slotType='cart'
-  const [carts, setCarts] = useState([]);
-
-  // Fetch the clock template (and slots) on mount
-  useEffect(() => {
-    axios
-      .get(`http://173.230.134.186:5000/api/clock-templates/${id}`)
-      .then((res) => {
-        setTemplate(res.data);
-        if (res.data && res.data.slots) {
-          // sort by minuteOffset or existing logic
-          const sortedSlots = [...res.data.slots].sort(
-            (a, b) => a.minuteOffset - b.minuteOffset
-          );
-          setSlots(sortedSlots);
-        }
-      })
-      .catch((err) => {
-        setError('Error fetching clock template');
-        console.error(err);
-      });
-  }, [id]);
-
-  // Optionally fetch station's carts if you want a cart dropdown
-  useEffect(() => {
-    if (!stationId) return;
-    axios
-      .get(`http://173.230.134.186:5000/api/carts?stationId=${stationId}`)
-      .then((res) => {
-        setCarts(res.data || []);
-      })
-      .catch((err) => {
-        console.error(err);
-      });
-  }, [stationId]);
-
-  // DnD reorder logic
-  const handleDragEnd = (result) => {
-    if (!result.destination) return;
-    const newSlots = Array.from(slots);
-    const [moved] = newSlots.splice(result.source.index, 1);
-    newSlots.splice(result.destination.index, 0, moved);
-
-    // For demonstration, we recalc minuteOffset = index*5 
-    newSlots.forEach((slot, idx) => {
-      slot.minuteOffset = idx * 5;
-    });
-
-    setSlots(newSlots);
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    border: '1px solid #ccc',
+    padding: '10px',
+    margin: '5px 0',
+    backgroundColor: 'white',
+    borderRadius: '4px',
+    cursor: 'grab'
   };
-
-  // Update slot's cartId or slotType if user picks a different type/cart
-  const handleSlotFieldChange = (slotId, field, value) => {
-    const newSlots = slots.map((slot) => {
-      if (slot.id === slotId) {
-        return { ...slot, [field]: value };
-      }
-      return slot;
-    });
-    setSlots(newSlots);
-  };
-
-  // Save reorder or field changes
-  const handleSave = () => {
-    setSaving(true);
-    const payload = {
-      slots: slots.map((s) => ({
-        id: s.id,
-        minuteOffset: s.minuteOffset,
-        slotType: s.slotType,
-        cartId: s.slotType === 'cart' ? s.cartId : null,
-      })),
-    };
-
-    axios
-      .put(`http://173.230.134.186:5000/api/clock-templates/${id}/slots`, payload)
-      .then(() => {
-        setSaving(false);
-        alert('Slots updated successfully!');
-      })
-      .catch((err) => {
-        setSaving(false);
-        setError('Error saving slot reorder');
-        console.error(err);
-      });
-  };
-
-  if (error) {
-    return <p style={{ color: 'red', margin: '1rem' }}>{error}</p>;
-  }
-  if (!template) {
-    return <p style={{ margin: '1rem' }}>Loading clock template...</p>;
-  }
 
   return (
-    <div style={{ margin: '1rem' }}>
-      <h2>Clock Template DnD: {template.templateName}</h2>
-      <p>{template.description || ''}</p>
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      {content} - {type}
+    </div>
+  );
+};
 
-      {/* Optional: choose station for cart reference */}
-      <div style={{ marginBottom: '1rem' }}>
-        <label>Station ID (for cart loading): </label>
-        <input
-          type="number"
-          value={stationId}
-          onChange={(e) => setStationId(e.target.value)}
-          style={{ width: '60px' }}
-        />
-        <span style={{ marginLeft: '1rem' }}>
-          {carts.length} carts loaded for station {stationId}
-        </span>
+const ClockTemplateEditorDnd = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const [template, setTemplate] = useState(null);
+  const [slots, setSlots] = useState([
+    { id: '1', content: 'Slot 1', type: 'song', minuteOffset: 0 },
+    { id: '2', content: 'Slot 2', type: 'song', minuteOffset: 5 },
+    { id: '3', content: 'Slot 3', type: 'song', minuteOffset: 10 }
+  ]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  useEffect(() => {
+    fetchTemplate();
+  }, [id]);
+
+  const fetchTemplate = async () => {
+    try {
+      const response = await axios.get(`http://173.230.134.186:5000/api/clock-templates/${id}`);
+      setTemplate(response.data);
+      if (response.data.slots) {
+        const sortedSlots = [...response.data.slots].sort((a, b) => a.minuteOffset - b.minuteOffset);
+        setSlots(sortedSlots);
+      }
+    } catch (error) {
+      console.error('Error fetching template:', error);
+    }
+  };
+
+  const handleDragEnd = (event) => {
+    const { active, over } = event;
+    
+    if (active.id !== over.id) {
+      setSlots((items) => {
+        const oldIndex = items.findIndex(item => item.id === active.id);
+        const newIndex = items.findIndex(item => item.id === over.id);
+        
+        return arrayMove(items, oldIndex, newIndex).map((item, index) => ({
+          ...item,
+          minuteOffset: index * 5  // Update minuteOffset based on new position
+        }));
+      });
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      await axios.put(`http://173.230.134.186:5000/api/clock-templates/${id}/slots`, {
+        slots: slots.map(slot => ({
+          id: slot.id,
+          minuteOffset: slot.minuteOffset,
+          slotType: slot.type,
+          clockTemplateId: id
+        }))
+      });
+      navigate('/clock-templates');
+    } catch (error) {
+      console.error('Error saving slots:', error);
+    }
+  };
+
+  return (
+    <div style={{ padding: '20px' }}>
+      <h2>Clock Template Editor</h2>
+      {template && (
+        <div style={{ marginBottom: '20px' }}>
+          <h3>{template.templateName}</h3>
+          <p>{template.description}</p>
+        </div>
+      )}
+      
+      <div 
+        style={{
+          padding: '20px',
+          backgroundColor: '#f5f5f5',
+          borderRadius: '8px',
+          minHeight: '400px'
+        }}
+      >
+        <DndContext 
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext 
+            items={slots.map(s => s.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {slots.map((slot) => (
+              <SortableSlot 
+                key={slot.id} 
+                id={slot.id}
+                content={`Slot at ${slot.minuteOffset} minutes`}
+                type={slot.type}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="slots">
-          {(provided) => (
-            <div
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-              style={{ background: '#fafafa', padding: '1rem' }}
-            >
-              {slots.map((slot, index) => (
-                <Draggable
-                  key={slot.id.toString()}
-                  draggableId={slot.id.toString()}
-                  index={index}
-                >
-                  {(provided2) => (
-                    <div
-                      ref={provided2.innerRef}
-                      {...provided2.draggableProps}
-                      {...provided2.dragHandleProps}
-                      style={{
-                        background: '#fff',
-                        border: '1px solid #ccc',
-                        marginBottom: '0.5rem',
-                        padding: '0.5rem',
-                        ...provided2.draggableProps.style,
-                      }}
-                    >
-                      <div style={{ marginBottom: '0.5rem' }}>
-                        <strong>Slot ID:</strong> {slot.id} |{' '}
-                        <strong>Offset:</strong> {slot.minuteOffset} min
-                      </div>
-
-                      <div style={{ marginBottom: '0.5rem' }}>
-                        <label>Type: </label>
-                        <select
-                          value={slot.slotType}
-                          onChange={(e) =>
-                            handleSlotFieldChange(
-                              slot.id,
-                              'slotType',
-                              e.target.value
-                            )
-                          }
-                        >
-                          <option value="song">song</option>
-                          <option value="cart">cart</option>
-                          <option value="jingle">jingle</option>
-                          {/* or other types you use */}
-                        </select>
-                      </div>
-
-                      {slot.slotType === 'cart' && (
-                        <div style={{ marginBottom: '0.5rem' }}>
-                          <label>Cart:</label>
-                          <select
-                            value={slot.cartId || ''}
-                            onChange={(e) =>
-                              handleSlotFieldChange(
-                                slot.id,
-                                'cartId',
-                                parseInt(e.target.value, 10)
-                              )
-                            }
-                          >
-                            <option value="">-- select cart --</option>
-                            {carts.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name} ({c.category || 'no-cat'}) [ID {c.id}]
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
-
-      <button onClick={handleSave} disabled={saving}>
-        {saving ? 'Saving...' : 'Save Reorder'}
+      <button 
+        onClick={handleSave}
+        style={{
+          marginTop: '20px',
+          padding: '10px 20px',
+          backgroundColor: '#007bff',
+          color: 'white',
+          border: 'none',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+      >
+        Save Changes
       </button>
     </div>
   );
-}
+};
 
 export default ClockTemplateEditorDnd;
