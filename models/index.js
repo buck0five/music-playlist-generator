@@ -1,6 +1,7 @@
 // models/index.js
 
 const sequelize = require('../config/database');
+const { Op } = require('sequelize');
 
 const Station = require('./Station');
 const StationProfile = require('./StationProfile');
@@ -103,34 +104,86 @@ Station.belongsTo(ClockMap, { foreignKey: 'clockMapId' });
 ClockMap.hasMany(Station, { foreignKey: 'clockMapId' });
 
 // CONTENT LIBRARY <-> CONTENT
-ContentLibrary.hasMany(Content, { foreignKey: 'libraryId' });
-Content.belongsTo(ContentLibrary, { foreignKey: 'libraryId' });
-
-// NEW association: Station <-> Cart
-Station.hasMany(Cart, { foreignKey: 'stationId' });
-Cart.belongsTo(Station, { foreignKey: 'stationId' });
-
-// Verticals
-module.exports = {
-  sequelize,
-  Station,
-  // ...
-  Vertical,  
-};
-
-Vertical.hasMany(Station, { foreignKey: 'verticalId' });
-Station.belongsTo(Vertical, { foreignKey: 'verticalId' });
-
-// many to many
 Content.belongsToMany(ContentLibrary, {
   through: ContentLibraryContent,
   foreignKey: 'contentId',
   otherKey: 'contentLibraryId',
+  as: 'Libraries'
 });
 ContentLibrary.belongsToMany(Content, {
   through: ContentLibraryContent,
   foreignKey: 'contentLibraryId',
   otherKey: 'contentId',
+  as: 'LibraryContents'
+});
+
+// Vertical associations
+Vertical.hasMany(ContentLibrary, {
+  foreignKey: 'verticalId',
+  as: 'Libraries',
+  scope: {
+    libraryType: {
+      [Op.in]: ['VERTICAL_MUSIC', 'VERTICAL_ADS']
+    }
+  }
+});
+
+ContentLibrary.belongsTo(Vertical, {
+  foreignKey: 'verticalId',
+  as: 'Vertical'
+});
+
+// User associations for station-specific libraries
+User.hasMany(ContentLibrary, {
+  foreignKey: 'userId',
+  as: 'CustomLibraries',
+  scope: {
+    libraryType: 'STATION_CUSTOM'
+  }
+});
+
+ContentLibrary.belongsTo(User, {
+  foreignKey: 'userId',
+  as: 'User'
+});
+
+// Add scoped associations for different library types
+ContentLibrary.addScope('globalMusic', {
+  where: {
+    libraryType: 'GLOBAL_MUSIC',
+    isGlobal: true
+  }
+});
+
+ContentLibrary.addScope('verticalMusic', {
+  where: {
+    libraryType: 'VERTICAL_MUSIC'
+  },
+  include: [{
+    model: Vertical,
+    as: 'Vertical'
+  }]
+});
+
+ContentLibrary.addScope('verticalAds', {
+  where: {
+    libraryType: 'VERTICAL_ADS',
+    isAdLibrary: true
+  },
+  include: [{
+    model: Vertical,
+    as: 'Vertical'
+  }]
+});
+
+ContentLibrary.addScope('stationCustom', {
+  where: {
+    libraryType: 'STATION_CUSTOM'
+  },
+  include: [{
+    model: User,
+    as: 'User'
+  }]
 });
 
 // User associations

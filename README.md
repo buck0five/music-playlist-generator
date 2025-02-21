@@ -7,24 +7,41 @@ This system provides customized in-store music and advertising solutions for ret
 
 ### Content Library System
 - **Vertical-Specific Libraries**
-  - Shared music and advertising content per business category
-  - Example: Pet stores share different content than hardware stores
+  - Two implemented types:
+    - VERTICAL_MUSIC: Music specific to business verticals
+    - VERTICAL_ADS: Advertising content for specific verticals
+  - ✓ Implemented: Vertical-specific content restrictions
+  - ✓ Implemented: Genre rules and restrictions
+  - Planned: Enhanced vertical categorization
+  
 - **Station-Specific Libraries**
-  - Custom announcements and local content
-  - Personal content library for each station
+  - ✓ Implemented: STATION_CUSTOM type
+  - ✓ Implemented: Personal content libraries tied to specific users
+  - ✓ Implemented: Support for custom jingles
+  - Planned: Enhanced local content management
+  
 - **Global Libraries**
-  - System-wide content available across all verticals
-  - Managed by admin users
+  - ✓ Implemented: GLOBAL_MUSIC type
+  - ✓ Implemented: System-wide content
+  - ✓ Implemented: Admin-only management
+  - ✓ Implemented: Genre restrictions
+  
 - **Force Cart System (FRC1)**
   - Admin-only cart management
   - Allows system-wide content insertion
   - Invisible to end users
 
+- **Library Management**
+  - ✓ Implemented: Content type restrictions
+  - ✓ Implemented: Vertical-based restrictions
+  - ✓ Implemented: Library compatibility validation
+  - Planned: Enhanced mass content assignment
+
 ### Music Selection & Rotation
 - **Format Selection**
-  - ~20 predefined music styles (genres and mixed categories)
-  - User-defined percentage splits between formats
-  - Round-robin selection between chosen formats
+  - ~20 predefined music styles (genres and mixed categories like "Classic Rock" or "80s Hits")
+  - User-defined percentage splits between formats (e.g., 50% classic rock, 25% country, 25% jazz)
+  - Round-robin format selection during playlist generation to maintain specified percentages
 - **Smart Content Selection**
   - Optional tag-based scoring system (can be enabled/disabled per user)
   - Last-played tracking to prevent repetition
@@ -76,15 +93,20 @@ The system is designed as a content management and playlist generation platform 
 
 #### Clock Templates
 - Represents approximately one hour of content
-- Built using a drag-and-drop editor
+- Built using a drag-and-drop editor (React with @dnd-kit)
 - Each slot in the template defines:
   - Content type (song, cart, jingle)
   - Minute offset for timing
   - Cart assignments for advertising slots
-- Currently uses hour-based slots with plans for:
-  - Future minute-by-minute scheduling
-  - Automatic content insertion based on song length
-  - Mid-song ad prevention
+- Current Implementation:
+  - Hour-based scheduling using clock templates
+  - Templates assigned to specific days/hours via Clock Maps
+  - Cart slots skipped if no content available
+- Future Enhancements:
+  - Minute-by-minute scheduling post-playlist generation
+  - Intelligent content insertion based on actual song lengths
+  - Protection against mid-song advertising insertion
+  - Smarter transition handling between content
   
 #### Clock Maps (Dayparting)
 - Weekly scheduling system
@@ -98,24 +120,45 @@ The system is designed as a content management and playlist generation platform 
 - Templates can be reused across multiple time slots
 
 #### Content Rotation
-- Uses cart system for content organization
-- Standard carts visible to all users
-- Force carts (FRC1) for admin-only content
-- Cart content can be scheduled with:
-  - Start/end dates
-  - Day-of-week restrictions
-  - Hour restrictions
-- Rotation index tracks content usage to prevent repetition
+- Admin Interface:
+  - Cart system for content organization
+  - Cart content scheduling with:
+    - Start/end dates
+    - Day-of-week restrictions
+    - Hour restrictions
+  - Force carts (FRC1) for admin-only content
+  - Rotation index tracks content usage
+- End User Interface:
+  - Simplified ad library selection
+  - Date/time scheduling for ads
+  - Music style selection with percentage splits
+  - No direct interaction with cart system
 
-### Content Management
-- Users can select from ~20 music styles (genres and mixed categories)
-- Playlists are generated based on:
-  - Selected music formats
-  - Tag scores (if enabled)
-  - Last played history
-  - Scheduling rules
-- Custom audio uploads require admin approval unless automated encoding is implemented
-- Content can be mass-assigned across multiple stations
+### Content Management & Distribution
+#### Format Management
+- Users select from ~20 predefined music styles:
+  - Pure genres (Rock, Country, Jazz, etc.)
+  - Mixed categories (80s Hits, Classic Rock, etc.)
+  - Customizable percentage splits between formats
+  
+#### Playlist Generation Logic
+- Content selection prioritizes:
+  1. User's selected formats in specified percentages
+  2. Tag scores (when feedback system enabled)
+  3. Last played restrictions (prevent repetition)
+  4. Scheduling rules and restrictions
+
+#### Content Distribution Tools
+- Mass assignment capabilities:
+  - Chain-wide content distribution
+  - Vertical-specific content updates
+  - Holiday programming deployment
+  - Multi-station advertising campaigns
+- Standard and Force Cart management:
+  - Regular carts visible to all users
+  - Force carts (FRC1) for admin-only content
+  - Same scheduling capabilities for both types
+  - Empty carts skipped during playlist generation
 
 ## Technical Stack Overview (as of 2025)
 ```tech-stack
@@ -149,7 +192,7 @@ Content
 Cart
 ├── stationId: owner reference
 ├── category: content grouping
-└── rotationIndex: play tracking
+├── rotationIndex: play tracking
 └── items: CartItem[] relationship
 ```
 
@@ -318,14 +361,27 @@ Output: M3U playlist
 Delivery: FTP to streaming server
 ```
 
-### Audio Requirements
+### Audio Requirements & Upload Process
 ```requirements
-Format: 64kbps/16bit/mono/44.1kHz
-Normalization: -6dB
+Audio Format Standards:
+- Bitrate: 64kbps
+- Bit Depth: 16-bit
+- Channels: Mono
+- Sample Rate: 44.1kHz
+- Normalization: -6dB
+
 Custom Upload Process:
-- Admin approval required
-- Supported formats: MP3, WAV
-- Automated encoding (future feature)
+- Supported Input Formats: MP3, WAV
+- File Size Restrictions: TBD
+- Current Workflow:
+  - User uploads audio file
+  - Admin approval required
+  - Manual format verification
+  - Manual audio standardization
+- Future Enhancement:
+  - Automated audio encoding to required format
+  - Automated normalization
+  - Direct user uploads without approval
 ```
 
 ### Content Distribution
@@ -352,6 +408,31 @@ Custom Upload Process:
   - Playlist logs
   - PRO reporting support
   - Content distribution metrics
+
+### Implementation Status
+
+#### Database Schema
+- ✓ Implemented Models:
+  - Content: Full implementation with validation
+  - ContentLibrary: Four library types with validation
+  - Station: Basic implementation
+  - Cart/CartItem: Basic implementation
+  - Tag/ContentTag: Basic implementation
+  
+#### Library Types
+- ✓ GLOBAL_MUSIC
+  - No vertical restrictions
+  - Admin-only capability
+  - Non-advertisement content
+- ✓ VERTICAL_MUSIC
+  - Vertical-specific
+  - Non-advertisement content
+- ✓ VERTICAL_ADS
+  - Vertical-specific
+  - Advertisement-only
+- ✓ STATION_CUSTOM
+  - User-specific
+  - Flexible content types
 
 <!-- 
 This project follows a three-tier architecture:

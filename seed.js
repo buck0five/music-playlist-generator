@@ -97,18 +97,32 @@ async function seed() {
     // ========== 4) Create Some Content Libraries ==========
     // library #1: global music library (no userId, no verticalId)
     const globalMusicLib = await ContentLibrary.create({
-      name: 'Global Music',
-      description: 'Music shared globally',
-      userId: null,
-      verticalId: null,
+      name: 'Global Music Library',
+      description: 'System-wide music collection',
+      libraryType: 'GLOBAL_MUSIC',
+      isGlobal: true,
+      adminOnly: true,
+      contentTypes: ['song'],
+      restrictions: {
+        genres: {
+          included: ['pop', 'rock', 'jazz'],
+          excluded: ['explicit']
+        }
+      }
     });
 
     // library #2: pet vertical library
-    const petLib = await ContentLibrary.create({
-      name: 'Pet Store Ads',
-      description: 'Ads only for pet stores',
-      userId: null,
-      verticalId: petVertical.id, // belongs to Pet Vertical
+    const petMusicLib = await ContentLibrary.create({
+      name: 'Pet Store Music',
+      description: 'Vertical-specific music for pet stores',
+      libraryType: 'VERTICAL_MUSIC',
+      verticalId: petVertical.id,
+      contentTypes: ['song'],
+      restrictions: {
+        genres: {
+          included: ['ambient', 'relaxing']
+        }
+      }
     });
 
     // library #3: hardware vertical library
@@ -117,6 +131,9 @@ async function seed() {
       description: 'Ads only for hardware stores',
       userId: null,
       verticalId: hardwareVertical.id,
+      libraryType: 'VERTICAL_ADS',
+      isAdLibrary: true,
+      contentTypes: ['advertisement']
     });
 
     // library #4: private library for storeUser1
@@ -125,6 +142,18 @@ async function seed() {
       description: 'StoreUser1 custom audio',
       userId: storeUser1.id,
       verticalId: null,
+      libraryType: 'STATION_CUSTOM',
+      contentTypes: ['song', 'jingle']
+    });
+
+    // library #5: pet ads library
+    const petAdsLib = await ContentLibrary.create({
+      name: 'Pet Store Ads',
+      description: 'Pet store advertisements',
+      libraryType: 'VERTICAL_ADS',
+      verticalId: petVertical.id,
+      isAdLibrary: true,
+      contentTypes: ['advertisement']
     });
 
     // ========== 5) Create Some Content ==========
@@ -132,11 +161,14 @@ async function seed() {
     const globalSongA = await Content.create({
       title: 'Global Rock Song 1',
       contentType: 'song',
-      libraryId: globalMusicLib.id,
       duration: 180,
       fileName: 'global_rock_1.mp3',
       score: 1.0,
+      genres: ['rock'],
+      verticalRestrictions: [],
+      tags: []
     });
+    await globalMusicLib.addLibraryContent(globalSongA);
     const globalSongB = await Content.create({
       title: 'Global Rock Song 2',
       contentType: 'song',
@@ -149,22 +181,32 @@ async function seed() {
     // pet store ads
     const petAd1 = await Content.create({
       title: 'Pet Store Ad #1',
-      contentType: 'ad',
-      libraryId: petLib.id,
+      contentType: 'advertisement',
+      isAdvertisement: true,
+      libraryId: petMusicLib.id,
       duration: 30,
       fileName: 'pet_ad_1.mp3',
       score: 1.0,
+      genres: [],
+      verticalRestrictions: [petVertical.id],
+      tags: []
     });
+    await petMusicLib.addLibraryContent(petAd1);
 
     // hardware store ads
     const hardwareAd1 = await Content.create({
       title: 'Hardware Ad #1',
-      contentType: 'ad',
+      contentType: 'advertisement',
+      isAdvertisement: true,
       libraryId: hardwareLib.id,
       duration: 25,
       fileName: 'hardware_ad_1.mp3',
       score: 1.0,
+      genres: [],
+      verticalRestrictions: [hardwareVertical.id],
+      tags: []
     });
+    await hardwareLib.addLibraryContent(hardwareAd1);
 
     // private content for user1
     const user1ContentA = await Content.create({
@@ -175,6 +217,7 @@ async function seed() {
       fileName: 'user1_jingle.mp3',
       score: 1.0,
     });
+    await user1Lib.addLibraryContent(user1ContentA);
 
     // ========== 6) Create a Cart for station1, referencing user1's station ==========
     const station1CartA = await Cart.create({
@@ -206,12 +249,58 @@ async function seed() {
       contentId: hardwareAd1.id,
     });
 
-    console.log('Seed data created successfully.');
+    // ========== 8) Create some tags ==========
+    const tags = await Promise.all([
+      Tag.create({ name: 'Upbeat' }),
+      Tag.create({ name: 'Relaxing' }),
+      Tag.create({ name: 'Sale' }),
+      Tag.create({ name: 'Promotional' })
+    ]);
+
+    // ========== 9) Create content with tags ==========
+    const globalSong = await Content.create({
+      title: 'Happy Days',
+      contentType: 'song',
+      genres: ['pop', 'upbeat'],
+      duration: 180,
+      fileName: 'happy_days.mp3',
+      tags: [{ id: tags[0].id }], // Upbeat tag
+      tagScores: {
+        [tags[0].id]: {
+          total: 4.5,
+          count: 5,
+          byStation: {}
+        }
+      }
+    });
+
+    const petAd = await Content.create({
+      title: 'Summer Pet Sale',
+      contentType: 'advertisement',
+      isAdvertisement: true,
+      duration: 30,
+      fileName: 'pet_sale.mp3',
+      verticalRestrictions: [petVertical.id],
+      tags: [
+        { id: tags[2].id }, // Sale tag
+        { id: tags[3].id }  // Promotional tag
+      ]
+    });
+
+    // ========== 10) Assign content to libraries ==========
+    await globalMusicLib.addLibraryContent(globalSongB);
+    await petAdsLib.addLibraryContent(petAd);
+
+    console.log('Enhanced seed data created successfully');
   } catch (error) {
-    console.error('Seeding error:', error);
+    console.error('Seed error:', error);
+    throw error;
   } finally {
     await sequelize.close();
   }
 }
 
-seed();
+// Execute the seed function
+seed().catch(console.error);
+
+module.exports = seed;
