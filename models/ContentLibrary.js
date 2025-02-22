@@ -295,6 +295,10 @@ ContentLibrary.init(
       defaultValue: {},
       comment: 'Additional library properties and settings'
     },
+    stationId: {
+      type: DataTypes.INTEGER,
+      allowNull: true
+    }
   },
   {
     sequelize,

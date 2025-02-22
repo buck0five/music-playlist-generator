@@ -262,6 +262,10 @@ PlaybackLog.belongsTo(MusicContent, { constraints: false });
 PlaybackLog.belongsTo(AdvertisingContent, { constraints: false });
 PlaybackLog.belongsTo(StationContent, { constraints: false });
 
+// Define associations
+ContentLibrary.hasMany(StationContent);
+StationContent.belongsTo(ContentLibrary);
+
 // Export
 module.exports = {
   sequelize,
