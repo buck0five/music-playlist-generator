@@ -23,7 +23,7 @@ const ContentList = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
   const [filters, setFilters] = useState({});
-  const confirm = useConfirm();
+  const { confirm, ConfirmationDialog } = useConfirm(); // Updated from const confirm = useConfirm()
 
   useEffect(() => {
     fetchContent();
@@ -45,20 +45,24 @@ const ContentList = () => {
     setLoading(false);
   };
 
-  const handleDelete = async (id) => {
-    if (await confirm('Are you sure you want to delete this content?')) {
-      try {
-        await fetch(`/api/${activeTab}Content/${id}`, { 
-          method: 'DELETE',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-        fetchContent();
-      } catch (error) {
-        console.error('Error deleting content:', error);
+  const handleDelete = (id) => {
+    confirm({
+      title: 'Delete Content',
+      message: `Are you sure you want to delete this ${activeTab} content? This action cannot be undone.`,
+      onConfirm: async () => {
+        try {
+          await fetch(`/api/${activeTab}Content/${id}`, { 
+            method: 'DELETE',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          fetchContent();
+        } catch (error) {
+          console.error('Error deleting content:', error);
+        }
       }
-    }
+    });
   };
 
   const handleEdit = (id) => {
@@ -292,6 +296,8 @@ const ContentList = () => {
         filters={filters}
         onApplyFilters={setFilters}
       />
+
+      <ConfirmationDialog /> {/* Added ConfirmationDialog component */}
     </Box>
   );
 };

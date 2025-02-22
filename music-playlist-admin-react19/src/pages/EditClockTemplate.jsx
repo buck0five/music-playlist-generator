@@ -1,3 +1,5 @@
+// File: /music-playlist-admin-react19/src/pages/EditClockTemplate.jsx
+
 import React, { useEffect, useState } from 'react';
 import {
   DndContext,
@@ -19,7 +21,15 @@ import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 
 // Sortable item component
-const SortableItem = ({ id, slotType, minuteOffset, cartId }) => {
+const SortableItem = ({ 
+  id, 
+  slotType, 
+  minuteOffset, 
+  cartId,
+  onTypeChange,
+  onDelete,
+  availableCarts = []
+}) => {
   const {
     attributes,
     listeners,
@@ -32,8 +42,8 @@ const SortableItem = ({ id, slotType, minuteOffset, cartId }) => {
     transform: CSS.Transform.toString(transform),
     transition,
     border: '1px solid #ccc',
-    padding: '10px',
-    margin: '5px 0',
+    padding: '15px',
+    margin: '8px 0',
     backgroundColor: 'white',
     borderRadius: '4px',
     cursor: 'grab',
@@ -41,10 +51,66 @@ const SortableItem = ({ id, slotType, minuteOffset, cartId }) => {
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <div>Type: {slotType}</div>
-      <div>Minute Offset: {minuteOffset}</div>
-      {cartId && <div>Cart ID: {cartId}</div>}
+    <div ref={setNodeRef} style={style}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div {...attributes} {...listeners} style={{ 
+          padding: '8px', 
+          backgroundColor: '#f0f0f0', 
+          borderRadius: '4px',
+          marginRight: '10px'
+        }}>
+          ⋮⋮ Drag
+        </div>
+        
+        <div style={{ flex: 1 }}>
+          <div style={{ marginBottom: '8px' }}>
+            <label style={{ marginRight: '8px' }}>Type:</label>
+            <select 
+              value={slotType} 
+              onChange={(e) => onTypeChange(id, e.target.value)}
+              style={{ padding: '4px', minWidth: '120px' }}
+            >
+              <option value="song">Song</option>
+              <option value="cart">Cart</option>
+              <option value="jingle">Jingle</option>
+            </select>
+          </div>
+
+          {slotType === 'cart' && (
+            <div style={{ marginBottom: '8px' }}>
+              <label style={{ marginRight: '8px' }}>Cart:</label>
+              <select 
+                value={cartId || ''} 
+                onChange={(e) => onTypeChange(id, 'cart', e.target.value)}
+                style={{ padding: '4px', minWidth: '120px' }}
+              >
+                <option value="">Select Cart</option>
+                {availableCarts.map(cart => (
+                  <option key={cart.id} value={cart.id}>
+                    {cart.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div>Minute Offset: {minuteOffset}</div>
+        </div>
+
+        <button 
+          onClick={() => onDelete(id)}
+          style={{
+            padding: '4px 8px',
+            backgroundColor: '#ff4444',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer'
+          }}
+        >
+          Delete
+        </button>
+      </div>
     </div>
   );
 };
@@ -59,6 +125,7 @@ function EditClockTemplate() {
   const [loading, setLoading] = useState(true);
   const [savingTemplate, setSavingTemplate] = useState(false);
   const [savingSlots, setSavingSlots] = useState(false);
+  const [availableCarts, setAvailableCarts] = useState([]);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -70,6 +137,19 @@ function EditClockTemplate() {
   useEffect(() => {
     fetchClockTemplate();
   }, [id]);
+
+  // Fetch available carts
+  useEffect(() => {
+    const fetchCarts = async () => {
+      try {
+        const response = await axios.get('http://173.230.134.186:5000/api/carts');
+        setAvailableCarts(response.data);
+      } catch (err) {
+        console.error('Error fetching carts:', err);
+      }
+    };
+    fetchCarts();
+  }, []);
 
   const fetchClockTemplate = async () => {
     setLoading(true);
@@ -119,6 +199,33 @@ function EditClockTemplate() {
         }));
       });
     }
+  };
+
+  const handleAddSlot = () => {
+    const newSlot = {
+      id: `new-${Date.now()}`, // temporary ID
+      slotType: 'song',
+      minuteOffset: slots.length * 5,
+      cartId: null
+    };
+    setSlots([...slots, newSlot]);
+  };
+
+  const handleDeleteSlot = (slotId) => {
+    setSlots(slots.filter(slot => slot.id.toString() !== slotId.toString()));
+  };
+
+  const handleSlotTypeChange = (slotId, newType, cartId = null) => {
+    setSlots(slots.map(slot => {
+      if (slot.id.toString() === slotId.toString()) {
+        return {
+          ...slot,
+          slotType: newType,
+          cartId: newType === 'cart' ? cartId : null
+        };
+      }
+      return slot;
+    }));
   };
 
   const handleSaveTemplate = async () => {
@@ -193,7 +300,23 @@ function EditClockTemplate() {
         </button>
       </div>
 
-      <h3>Slots (Drag & Drop to Reorder)</h3>
+      <div style={{ marginBottom: '20px' }}>
+        <button 
+          onClick={handleAddSlot}
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginBottom: '10px'
+          }}
+        >
+          Add New Slot
+        </button>
+      </div>
+
       <DndContext 
         sensors={sensors}
         collisionDetection={closestCenter}
@@ -216,6 +339,9 @@ function EditClockTemplate() {
                 slotType={slot.slotType}
                 minuteOffset={slot.minuteOffset}
                 cartId={slot.cartId}
+                onTypeChange={handleSlotTypeChange}
+                onDelete={handleDeleteSlot}
+                availableCarts={availableCarts}
               />
             ))}
           </div>

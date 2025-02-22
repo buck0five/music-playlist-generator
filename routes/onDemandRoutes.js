@@ -11,7 +11,7 @@ const {
   PlaybackLog 
 } = require('../models');
 const { checkPermissions } = require('../middleware/auth');
-const { generatePlaylistForStation } = require('../services/playlistGenerator');
+const { generatePlaylistForStation } = require('../generatePlaylist');
 
 /**
  * Generate on-demand playlist with type-specific content selection

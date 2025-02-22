@@ -3,7 +3,7 @@
 const express = require('express');
 const router = express.Router();
 const { ContentLibrary, MusicContent, AdvertisingContent, StationContent } = require('../models');
-const { validateLibraryContent } = require('../middleware/validation');
+const { validateContentLibrary, validateLibraryContent, validatePagination, validateContentRemoval } = require('../middleware/validation');
 const { checkPermissions } = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -19,13 +19,9 @@ router.get('/', async (req, res) => {
 });
 
 // POST /api/content-libraries -> create a new library
-router.post('/', async (req, res) => {
+router.post('/', validateContentLibrary, async (req, res) => {
   try {
     const { name, description, userId, verticalId } = req.body;
-    if (!name) {
-      return res.status(400).json({ error: 'Library name is required.' });
-    }
-    // userId or verticalId can be null or set as needed
     const newLib = await ContentLibrary.create({
       name,
       description,
@@ -57,7 +53,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // PUT /api/content-libraries/:id -> update library name, desc, userId, verticalId
-router.put('/:id', async (req, res) => {
+router.put('/:id', validateContentLibrary, async (req, res) => {
   try {
     const libId = req.params.id;
     const { name, description, userId, verticalId } = req.body;
@@ -92,11 +88,8 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-/**
- * Get library contents with type filtering
- * @route GET /api/content-libraries/:id/contents
- */
-router.get('/:id/contents', async (req, res) => {
+// GET /api/content-libraries/:id/contents
+router.get('/:id/contents', [validatePagination], async (req, res) => {
   try {
     const { contentType, page = 1, limit = 50 } = req.query;
     const library = await ContentLibrary.findByPk(req.params.id);
@@ -125,21 +118,13 @@ router.get('/:id/contents', async (req, res) => {
   }
 });
 
-/**
- * Add content to library with type validation
- * @route POST /api/content-libraries/:id/add-content
- */
+// POST /api/content-libraries/:id/add-content
 router.post('/:id/add-content', validateLibraryContent, async (req, res) => {
   try {
-    const library = await ContentLibrary.findByPk(req.params.id);
-    if (!library) {
-      return res.status(404).json({ error: 'Library not found' });
-    }
-
+    const library = req.library;
     const { contentType, contentId } = req.body;
     let content;
 
-    // Get content based on type
     switch (contentType) {
       case 'MUSIC':
         content = await MusicContent.findByPk(contentId);
@@ -158,13 +143,11 @@ router.post('/:id/add-content', validateLibraryContent, async (req, res) => {
       return res.status(404).json({ error: 'Content not found' });
     }
 
-    // Check compatibility
     const compatibility = await library.isContentCompatible(content);
     if (!compatibility.isCompatible) {
       return res.status(400).json({ error: compatibility.reason });
     }
 
-    // Add content to library
     await library.addContent(content, {
       through: {
         contentType,
@@ -178,10 +161,7 @@ router.post('/:id/add-content', validateLibraryContent, async (req, res) => {
   }
 });
 
-/**
- * Get library content stats by type
- * @route GET /api/content-libraries/:id/content-stats
- */
+// GET /api/content-libraries/:id/content-stats
 router.get('/:id/content-stats', async (req, res) => {
   try {
     const library = await ContentLibrary.findByPk(req.params.id);
@@ -196,11 +176,8 @@ router.get('/:id/content-stats', async (req, res) => {
   }
 });
 
-/**
- * Remove content from library
- * @route DELETE /api/content-libraries/:id/remove-content
- */
-router.delete('/:id/remove-content', async (req, res) => {
+// DELETE /api/content-libraries/:id/remove-content
+router.delete('/:id/remove-content', validateContentRemoval, async (req, res) => {
   try {
     const library = await ContentLibrary.findByPk(req.params.id);
     if (!library) {

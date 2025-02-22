@@ -1,6 +1,6 @@
 // models/PlaybackLog.js
 
-const { DataTypes, Model } = require('sequelize');
+const { DataTypes, Model, Op } = require('sequelize');
 const sequelize = require('../config/database');
 
 /**
@@ -35,14 +35,14 @@ class PlaybackLog extends Model {
    * @returns {Promise<PlaybackLog[]>}
    */
   static async getPlayHistory(contentType, options = {}) {
-    const contentIdField = `${contentType.toLowerCase()}ContentId`;
+    const contentIdField = `${contentType.toLowerCase()}_content_id`; // Updated to snake_case
     return this.findAll({
       where: {
-        contentType,
+        content_type: contentType, // Updated to snake_case
         [contentIdField]: { [Op.not]: null },
         ...options.where
       },
-      order: [['playedAt', 'DESC']],
+      order: [['played_at', 'DESC']], // Updated to snake_case
       ...options
     });
   }
@@ -55,89 +55,100 @@ PlaybackLog.init({
     autoIncrement: true
   },
 
-  stationId: {
+  station_id: { // Changed from stationId to station_id
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Station',
+      model: 'stations',
       key: 'id'
-    }
+    },
+    onDelete: 'CASCADE',
+    onUpdate: 'CASCADE'
   },
 
-  contentType: {
+  content_type: { // Changed from contentType to content_type
     type: DataTypes.ENUM('MUSIC', 'ADVERTISING', 'STATION'),
-    allowNull: false
+    allowNull: false,
+    validate: {
+      isIn: [['MUSIC', 'ADVERTISING', 'STATION']]
+    }
   },
 
-  // Optional content references - only one should be set
-  musicContentId: {
+  music_content_id: { // Changed from musicContentId to music_content_id
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'MusicContent',
+      model: 'music_contents',
       key: 'id'
     }
   },
 
-  advertisingContentId: {
+  advertising_content_id: { // Changed from advertisingContentId to advertising_content_id
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'AdvertisingContent',
+      model: 'advertising_contents',
       key: 'id'
     }
   },
 
-  stationContentId: {
+  station_content_id: { // Changed from stationContentId to station_content_id
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'StationContent',
+      model: 'station_contents',
       key: 'id'
     }
   },
 
-  playedAt: {
+  played_at: { // Changed from playedAt to played_at
     type: DataTypes.DATE,
     allowNull: false,
     defaultValue: DataTypes.NOW
   },
 
-  // Additional metadata about the playback
   duration: {
     type: DataTypes.INTEGER,
     allowNull: false,
-    comment: 'Actual duration played in seconds'
+    comment: 'Actual duration played in seconds',
+    validate: {
+      min: 0
+    }
   },
 
-  playbackStatus: {
+  playback_status: { // Changed from playbackStatus to playback_status
     type: DataTypes.ENUM('completed', 'skipped', 'interrupted'),
     allowNull: false,
-    defaultValue: 'completed'
+    defaultValue: 'completed',
+    validate: {
+      isIn: [['completed', 'skipped', 'interrupted']]
+    }
   }
 }, {
   sequelize,
   modelName: 'PlaybackLog',
   tableName: 'playback_logs',
+  underscored: true,
+  timestamps: true,
   indexes: [
-    { fields: ['stationId'] },
-    { fields: ['contentType'] },
-    { fields: ['playedAt'] },
-    { fields: ['musicContentId'] },
-    { fields: ['advertisingContentId'] },
-    { fields: ['stationContentId'] },
+    { fields: ['station_id'] },
+    { fields: ['content_type'] },
+    { fields: ['played_at'] },
+    { fields: ['music_content_id'] },
+    { fields: ['advertising_content_id'] },
+    { fields: ['station_content_id'] },
     // Composite indexes for efficient queries
-    { fields: ['stationId', 'contentType', 'playedAt'] },
-    { fields: ['stationId', 'musicContentId'] },
-    { fields: ['stationId', 'advertisingContentId'] },
-    { fields: ['stationId', 'stationContentId'] }
+    { fields: ['station_id', 'content_type', 'played_at'] },
+    { fields: ['station_id', 'music_content_id'] },
+    { fields: ['station_id', 'advertising_content_id'] },
+    { fields: ['station_id', 'station_content_id'] }
   ],
   validate: {
     validateContentReference() {
       const contentIds = [
-        this.musicContentId,
-        this.advertisingContentId,
-        this.stationContentId
+        this.music_content_id,
+        this.advertising_content_id,
+        this.station_content_id
       ].filter(id => id !== null);
 
       if (contentIds.length !== 1) {
@@ -145,20 +156,20 @@ PlaybackLog.init({
       }
 
       // Validate content type matches ID
-      switch (this.contentType) {
+      switch (this.content_type) {
         case 'MUSIC':
-          if (!this.musicContentId) {
-            throw new Error('Music content type requires musicContentId');
+          if (!this.music_content_id) {
+            throw new Error('Music content type requires music_content_id');
           }
           break;
         case 'ADVERTISING':
-          if (!this.advertisingContentId) {
-            throw new Error('Advertising content type requires advertisingContentId');
+          if (!this.advertising_content_id) {
+            throw new Error('Advertising content type requires advertising_content_id');
           }
           break;
         case 'STATION':
-          if (!this.stationContentId) {
-            throw new Error('Station content type requires stationContentId');
+          if (!this.station_content_id) {
+            throw new Error('Station content type requires station_content_id');
           }
           break;
       }
@@ -169,19 +180,26 @@ PlaybackLog.init({
 // Define associations
 PlaybackLog.associate = (models) => {
   PlaybackLog.belongsTo(models.Station, {
-    foreignKey: 'stationId'
+    foreignKey: 'station_id',
+    as: 'station'
   });
 
   PlaybackLog.belongsTo(models.MusicContent, {
-    foreignKey: 'musicContentId'
+    foreignKey: 'music_content_id',
+    as: 'music_content',
+    constraints: false
   });
 
   PlaybackLog.belongsTo(models.AdvertisingContent, {
-    foreignKey: 'advertisingContentId'
+    foreignKey: 'advertising_content_id',
+    as: 'advertising_content',
+    constraints: false
   });
 
   PlaybackLog.belongsTo(models.StationContent, {
-    foreignKey: 'stationContentId'
+    foreignKey: 'station_content_id',
+    as: 'station_content',
+    constraints: false
   });
 };
 
