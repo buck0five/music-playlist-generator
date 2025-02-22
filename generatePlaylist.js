@@ -10,9 +10,46 @@ const {
   CartItem,
   Content,
   PlaybackLog,
+  MusicContent,
+  AdvertisingContent,
+  StationContent,
 } = require('./models');
+const { Op } = require('sequelize');
 
-async function generatePlaylistForStation(stationId, targetDate = new Date()) {
+/**
+ * Format tracker to maintain specified percentages
+ */
+class FormatTracker {
+  constructor(formatPreferences) {
+    this.preferences = formatPreferences;
+    this.used = Object.keys(formatPreferences).reduce((acc, format) => {
+      acc[format] = 0;
+      return acc;
+    }, {});
+    this.totalDuration = 0;
+  }
+
+  getNextFormat() {
+    return Object.entries(this.preferences)
+      .reduce((lowest, [format, percentage]) => {
+        const currentPercentage = (this.used[format] / this.totalDuration) * 100 || 0;
+        const deficit = percentage - currentPercentage;
+        return deficit > lowest.deficit ? { format, deficit } : lowest;
+      }, { format: null, deficit: -Infinity }).format;
+  }
+
+  trackFormat(format, duration) {
+    this.used[format] += duration;
+    this.totalDuration += duration;
+  }
+}
+
+async function generatePlaylistForStation({ 
+  stationId, 
+  targetDate = new Date(),
+  formatPreferences,
+  useTagScoring = false 
+}) {
   // 1) Fetch the station
   const station = await Station.findByPk(stationId);
   if (!station) return [];
@@ -57,7 +94,9 @@ async function generatePlaylistForStation(stationId, targetDate = new Date()) {
     (a, b) => a.minuteOffset - b.minuteOffset
   );
 
+  const formatTracker = new FormatTracker(formatPreferences);
   const finalPlaylist = [];
+  const artistHistory = new Map();
 
   // For date comparisons (per cart item)
   const now = targetDate; 
@@ -65,63 +104,70 @@ async function generatePlaylistForStation(stationId, targetDate = new Date()) {
 
   // 4) For each slot, pick content
   for (const slot of slots) {
-    if (slot.slotType === 'song') {
-      // pick first or random "song"
-      const song = await Content.findOne({ where: { contentType: 'song' } });
-      if (song) {
-        finalPlaylist.push({ id: song.id, title: song.title, fileName: song.fileName });
+    try {
+      let content = null;
+
+      switch (slot.slotType) {
+        case 'MUSIC':
+          content = await selectMusicContent({
+            station,
+            slot,
+            formatTracker,
+            artistHistory,
+            useTagScoring,
+            targetDate
+          });
+          break;
+
+        case 'VEN1':
+        case 'SVC1':
+          content = await selectAdvertisingContent({
+            station,
+            slot,
+            targetDate
+          });
+          break;
+
+        case 'SID1':
+        case 'TIM1':
+        case 'WEA1':
+          content = await selectStationContent({
+            station,
+            slot,
+            targetDate
+          });
+          break;
+
+        case 'FRC1':
+          content = await selectForceCart({
+            station,
+            slot,
+            targetDate
+          });
+          break;
       }
-    } else if (slot.slotType === 'cart' && slot.cartId) {
-      // round-robin among cart items that are "in range"
-      const cart = await Cart.findByPk(slot.cartId);
-      if (!cart) continue;
 
-      // fetch pivot items
-      const items = await CartItem.findAll({
-        where: { cartId: cart.id },
-        include: [{ model: Content, as: 'Content' }],
-      });
-      if (!items.length) continue;
-
-      // filter out items not valid for date/time
-      const eligibleItems = items.filter((item) => {
-        // 1) check startDate/endDate
-        if (item.startDate && todayStr < item.startDate) return false;
-        if (item.endDate && todayStr > item.endDate) return false;
-
-        // 2) check daysOfWeek
-        if (item.daysOfWeek) {
-          const arr = item.daysOfWeek.split(',').map(Number); // "0,1,2" -> [0,1,2]
-          if (!arr.includes(dayOfWeek)) return false;
-        }
-
-        // 3) check hours
-        if (item.startHour != null && hour < item.startHour) return false;
-        if (item.endHour != null && hour >= item.endHour) return false;
-
-        return true;
-      });
-
-      if (!eligibleItems.length) {
-        // no valid item for this slot/time
-        continue;
-      }
-
-      // round-robin index from cart
-      let rotationIndex = cart.rotationIndex || 0;
-      const picked = eligibleItems[rotationIndex % eligibleItems.length].Content;
-      if (picked) {
+      if (content) {
         finalPlaylist.push({
-          id: picked.id,
-          title: picked.title,
-          fileName: picked.fileName,
+          id: content.id,
+          title: content.title,
+          fileName: content.fileName,
+          contentType: content.constructor.name,
+          duration: content.duration,
+          position: slot.minuteOffset
         });
+
+        // Update tracking if music content
+        if (content instanceof MusicContent) {
+          formatTracker.trackFormat(content.format, content.duration);
+          artistHistory.set(content.artistId, targetDate.getTime());
+        }
       }
 
-      cart.rotationIndex = (rotationIndex + 1) % eligibleItems.length;
-      await cart.save();
+    } catch (error) {
+      console.error(`Error processing slot at ${slot.minuteOffset}:`, error);
+      continue;
     }
-    // add other slotTypes if needed
   }
 
   // 5) Log each item
@@ -134,6 +180,35 @@ async function generatePlaylistForStation(stationId, targetDate = new Date()) {
   }
 
   return finalPlaylist;
+}
+
+// Helper functions referenced from original file
+async function getTemplateId(station, targetDate) {
+  // Reference existing template ID logic:
+  // dayOfWeek/hour from targetDate
+  const dayOfWeek = targetDate.getDay(); // 0=Sun..6=Sat
+  const hour = targetDate.getHours();    // 0..23
+
+  if (station.clockMapId) {
+    // find clockMapSlot by dayOfWeek, hour
+    const mapSlot = await ClockMapSlot.findOne({
+      where: {
+        clockMapId: station.clockMapId,
+        dayOfWeek,
+        hour,
+      },
+    });
+    if (mapSlot) {
+      return mapSlot.clockTemplateId;
+    }
+  }
+
+  // fallback if no clockMap or slot
+  if (station.defaultClockTemplateId) {
+    return station.defaultClockTemplateId;
+  }
+  // if still no template
+  return null;
 }
 
 module.exports = { generatePlaylistForStation };

@@ -2,7 +2,13 @@
 
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
+const { Op } = require('sequelize');
 
+/**
+ * ContentLibrary Model
+ * Represents a collection of content with type-specific handling
+ * @extends Model
+ */
 class ContentLibrary extends Model {
   // Static methods for finding libraries
   static async findByType(type) {
@@ -38,58 +44,91 @@ class ContentLibrary extends Model {
   }
 
   /**
-   * Checks if content is compatible with this library
-   * @param {Object} content - Content instance to check
-   * @returns {Object} { isCompatible: boolean, reason: string|null }
+   * Check if content is compatible with this library
+   * @param {MusicContent|AdvertisingContent|StationContent} content - Content to check
+   * @returns {Promise<Object>} { isCompatible: boolean, reason: string|null }
    */
   async isContentCompatible(content) {
-    const error = await this.getCompatibilityError(content);
-    return {
-      isCompatible: !error,
-      reason: error
-    };
+    // Check content model type compatibility
+    const contentModelType = content.constructor.name;
+    const allowedTypes = this.getAllowedContentModels();
+    
+    if (!allowedTypes.includes(contentModelType)) {
+      return {
+        isCompatible: false,
+        reason: `Content type ${contentModelType} not allowed in ${this.libraryType} libraries`
+      };
+    }
+
+    // Check vertical restrictions
+    if (this.verticalId) {
+      const verticalCheck = await this.checkVerticalCompatibility(content);
+      if (!verticalCheck.isCompatible) return verticalCheck;
+    }
+
+    // Check library-specific restrictions
+    const restrictionCheck = await this.checkLibraryRestrictions(content);
+    if (!restrictionCheck.isCompatible) return restrictionCheck;
+
+    return { isCompatible: true, reason: null };
   }
 
   /**
-   * Private helper to generate compatibility error messages
-   * @param {Object} content - Content instance to check
-   * @returns {string|null} Error message if incompatible, null if compatible
+   * Get allowed content model types for this library
+   * @returns {string[]} Array of allowed model names
    */
-  async getCompatibilityError(content) {
-    // Check content type compatibility
-    if (!this.contentTypes.includes(content.contentType)) {
-      return `Content type "${content.contentType}" not allowed in this library`;
+  getAllowedContentModels() {
+    switch (this.libraryType) {
+      case 'GLOBAL_MUSIC':
+      case 'VERTICAL_MUSIC':
+        return ['MusicContent'];
+      case 'VERTICAL_ADS':
+        return ['AdvertisingContent'];
+      case 'STATION_CUSTOM':
+        return ['MusicContent', 'AdvertisingContent', 'StationContent'];
+      default:
+        return [];
     }
+  }
 
-    // Check ad content restrictions
-    if (content.isAdvertisement && !this.isAdLibrary) {
-      return 'Advertisement content can only be added to ad libraries';
-    }
-    if (!content.isAdvertisement && this.isAdLibrary) {
-      return 'Only advertisement content can be added to ad libraries';
-    }
-
-    // Check vertical compatibility
-    if (this.verticalId) {
-      // For vertical-specific libraries, content must match vertical restrictions
-      if (content.verticalId && content.verticalId !== this.verticalId) {
-        return 'Content is restricted to a different vertical';
+  /**
+   * Check vertical compatibility
+   * @param {Object} content - Content instance to check
+   * @returns {Promise<Object>} { isCompatible: boolean, reason: string|null }
+   */
+  async checkVerticalCompatibility(content) {
+    if (content.verticalRestrictions?.length) {
+      if (!content.verticalRestrictions.includes(this.verticalId)) {
+        return {
+          isCompatible: false,
+          reason: 'Content is not available for this vertical'
+        };
       }
     }
+    return { isCompatible: true, reason: null };
+  }
 
-    // Check genre restrictions if defined
-    if (this.restrictions.genres && content.genre) {
-      if (this.restrictions.genres.excluded?.includes(content.genre)) {
-        return `Genre "${content.genre}" is excluded from this library`;
-      }
-      if (this.restrictions.genres.allowed?.length > 0 
-          && !this.restrictions.genres.allowed.includes(content.genre)) {
-        return `Genre "${content.genre}" is not in allowed genres list`;
-      }
+  /**
+   * Get content of specific type from library
+   * @param {string} contentType - Type of content to fetch
+   * @param {Object} options - Query options
+   * @returns {Promise<Array>} Array of content items
+   */
+  async getContentByType(contentType, options = {}) {
+    const models = this.sequelize.models;
+    const model = models[contentType];
+    
+    if (!model || !this.getAllowedContentModels().includes(contentType)) {
+      throw new Error(`Invalid content type ${contentType} for library ${this.libraryType}`);
     }
 
-    // All checks passed
-    return null;
+    return model.findAll({
+      include: [{
+        model: this.constructor,
+        where: { id: this.id }
+      }],
+      ...options
+    });
   }
 
   /**
@@ -243,7 +282,7 @@ ContentLibrary.init(
       type: DataTypes.JSON,
       allowNull: false,
       defaultValue: {},
-      comment: 'Genre/format restrictions and rules'
+      comment: 'Content restrictions and rules'
     },
     isGlobal: {
       type: DataTypes.BOOLEAN,
@@ -260,22 +299,46 @@ ContentLibrary.init(
   {
     sequelize,
     modelName: 'ContentLibrary',
-    freezeTableName: true,
+    tableName: 'content_libraries',
     validate: {
       validateLibraryScope() {
-        // Validate library type and scope combinations
-        if (this.isAdLibrary && !['VERTICAL_ADS'].includes(this.libraryType)) {
-          throw new Error('Ad libraries must be of type VERTICAL_ADS');
-        }
         if (this.isGlobal && this.libraryType !== 'GLOBAL_MUSIC') {
           throw new Error('Only GLOBAL_MUSIC libraries can be marked as global');
-        }
-        if (this.adminOnly && !this.isGlobal) {
-          throw new Error('Only global libraries can be admin-only');
         }
       }
     }
   }
 );
+
+// Define associations
+ContentLibrary.associate = (models) => {
+  // Many-to-many relationships with each content type
+  ContentLibrary.belongsToMany(models.MusicContent, {
+    through: 'LibraryMusicContent',
+    foreignKey: 'libraryId',
+    otherKey: 'musicContentId'
+  });
+
+  ContentLibrary.belongsToMany(models.AdvertisingContent, {
+    through: 'LibraryAdvertisingContent',
+    foreignKey: 'libraryId',
+    otherKey: 'advertisingContentId'
+  });
+
+  ContentLibrary.belongsToMany(models.StationContent, {
+    through: 'LibraryStationContent',
+    foreignKey: 'libraryId',
+    otherKey: 'stationContentId'
+  });
+
+  // Existing associations
+  ContentLibrary.belongsTo(models.Vertical, {
+    foreignKey: 'verticalId'
+  });
+
+  ContentLibrary.belongsTo(models.User, {
+    foreignKey: 'userId'
+  });
+};
 
 module.exports = ContentLibrary;

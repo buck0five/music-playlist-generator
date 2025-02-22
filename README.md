@@ -30,7 +30,7 @@ This system provides customized in-store music and advertising solutions for ret
   - Admin-only cart management
   - Allows system-wide content insertion
   - Invisible to end users
-
+ 
 - **Library Management**
   - ✓ Implemented: Content type restrictions
   - ✓ Implemented: Vertical-based restrictions
@@ -173,15 +173,20 @@ Key Libraries: @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, Axios
 ### Database Models
 ```models
 User
-├── roles: ['admin', 'chain', 'store']
-├── parentUserId: hierarchical relationship
-└── stations: one-to-many
+├── name: user name
+├── email: email address
+├── role: ['admin', 'chain', 'store']
+├── parentUserId: hierarchical user relationship
+├── preferences: user settings
+└── stations: one-to-many relationship
 
 Station
-├── verticalId: business category
+├── name: station name
 ├── userId: owner reference
+├── vertical: business type
+├── settings: station configuration
 ├── clockMapId: scheduling reference
-└── defaultClockTemplateId: template reference
+└── defaultClockTemplateId: fallback template
 
 Content
 ├── contentType: ['song', 'ad', 'jingle']
@@ -195,6 +200,52 @@ Cart
 ├── rotationIndex: play tracking
 └── items: CartItem[] relationship
 ```
+
+### Planned Content Type Architecture
+The system will transition to three specialized content models while maintaining existing models:
+
+#### New Content Models
+```models
+MusicContent
+├── artist: artist name
+├── album: album name
+├── releaseYear: year released
+├── formats: array of music formats
+├── bpm: tempo tracking
+├── energyLevel: energy rating
+├── tagScores: scoring data
+└── playHistory: play tracking
+
+AdvertisingContent
+├── campaignId: campaign reference
+├── clientName: client tracking
+├── priority: play priority
+├── playCount: required plays
+├── scheduling: timing rules
+└── verticalRestrictions: vertical limits
+
+StationContent
+├── contentType: content category
+├── stationId: owner reference
+├── scheduling: timing rules
+└── usage: usage tracking
+```
+
+#### Benefits of New Architecture
+- Specialized handling of each content type
+- Cleaner playlist generation logic
+- Simplified format selection for music
+- More accurate content tracking
+- Better scheduling control
+- Enhanced reporting capabilities
+
+This separation allows for:
+- Specialized handling of each content type
+- Cleaner playlist generation logic
+- Simplified format selection for music
+- More accurate content tracking
+- Better scheduling control
+- Enhanced reporting capabilities
 
 ### Key Components
 

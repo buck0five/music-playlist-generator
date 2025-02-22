@@ -2,7 +2,10 @@
 
 const express = require('express');
 const router = express.Router();
-const { ContentLibrary, Content } = require('../models');
+const { ContentLibrary, MusicContent, AdvertisingContent, StationContent } = require('../models');
+const { validateLibraryContent } = require('../middleware/validation');
+const { checkPermissions } = require('../middleware/auth');
+const { Op } = require('sequelize');
 
 // GET /api/content-libraries -> list all libraries
 router.get('/', async (req, res) => {
@@ -41,7 +44,7 @@ router.get('/:id', async (req, res) => {
   try {
     const libId = req.params.id;
     const lib = await ContentLibrary.findByPk(libId, {
-      include: [Content],
+      include: [MusicContent, AdvertisingContent, StationContent],
     });
     if (!lib) {
       return res.status(404).json({ error: 'Library not found.' });
@@ -86,6 +89,130 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     console.error('Error deleting library:', err);
     res.status(500).json({ error: 'Server error deleting library.' });
+  }
+});
+
+/**
+ * Get library contents with type filtering
+ * @route GET /api/content-libraries/:id/contents
+ */
+router.get('/:id/contents', async (req, res) => {
+  try {
+    const { contentType, page = 1, limit = 50 } = req.query;
+    const library = await ContentLibrary.findByPk(req.params.id);
+    
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' });
+    }
+
+    // Get allowed content types for this library
+    const allowedTypes = library.getAllowedContentModels();
+    if (contentType && !allowedTypes.includes(`${contentType}Content`)) {
+      return res.status(400).json({ 
+        error: `Content type ${contentType} not allowed in ${library.libraryType} libraries` 
+      });
+    }
+
+    const contents = await library.getContents({
+      contentType,
+      page,
+      limit
+    });
+
+    res.json(contents);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Add content to library with type validation
+ * @route POST /api/content-libraries/:id/add-content
+ */
+router.post('/:id/add-content', validateLibraryContent, async (req, res) => {
+  try {
+    const library = await ContentLibrary.findByPk(req.params.id);
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' });
+    }
+
+    const { contentType, contentId } = req.body;
+    let content;
+
+    // Get content based on type
+    switch (contentType) {
+      case 'MUSIC':
+        content = await MusicContent.findByPk(contentId);
+        break;
+      case 'ADVERTISING':
+        content = await AdvertisingContent.findByPk(contentId);
+        break;
+      case 'STATION':
+        content = await StationContent.findByPk(contentId);
+        break;
+      default:
+        return res.status(400).json({ error: 'Invalid content type' });
+    }
+
+    if (!content) {
+      return res.status(404).json({ error: 'Content not found' });
+    }
+
+    // Check compatibility
+    const compatibility = await library.isContentCompatible(content);
+    if (!compatibility.isCompatible) {
+      return res.status(400).json({ error: compatibility.reason });
+    }
+
+    // Add content to library
+    await library.addContent(content, {
+      through: {
+        contentType,
+        addedBy: req.user.id
+      }
+    });
+
+    res.json({ message: 'Content added successfully' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+/**
+ * Get library content stats by type
+ * @route GET /api/content-libraries/:id/content-stats
+ */
+router.get('/:id/content-stats', async (req, res) => {
+  try {
+    const library = await ContentLibrary.findByPk(req.params.id);
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' });
+    }
+
+    const stats = await library.getContentStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+/**
+ * Remove content from library
+ * @route DELETE /api/content-libraries/:id/remove-content
+ */
+router.delete('/:id/remove-content', async (req, res) => {
+  try {
+    const library = await ContentLibrary.findByPk(req.params.id);
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' });
+    }
+
+    const { contentType, contentId } = req.body;
+    await library.removeContent(contentType, contentId);
+    
+    res.json({ message: 'Content removed successfully' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
   }
 });
 
