@@ -3,6 +3,40 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  TextField, 
+  FormControl, 
+  InputLabel, 
+  Select, 
+  MenuItem, 
+  Chip,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Paper,
+  IconButton,
+  Alert,
+  Tabs,
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions
+} from '@mui/material';
+import { 
+  Delete, 
+  MusicNote, 
+  Campaign, 
+  Radio,
+  Edit,
+  Add
+} from '@mui/icons-material';
+import { DateTimePicker } from '@mui/x-date-pickers';
 
 function EditCart() {
   const { id } = useParams(); // cartId
@@ -29,9 +63,26 @@ function EditCart() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const [contentType, setContentType] = useState('MUSIC');
+  const [availableContent, setAvailableContent] = useState([]);
+  const [selectedContent, setSelectedContent] = useState('');
+  const [scheduleData, setScheduleData] = useState({
+    startDate: null,
+    endDate: null,
+    daysOfWeek: [],
+    startHour: '',
+    endHour: ''
+  });
+  const [success, setSuccess] = useState('');
+  const [dialogOpen, setDialogOpen] = useState(false);
+
   useEffect(() => {
     fetchCartData();
   }, [id]);
+
+  useEffect(() => {
+    fetchAvailableContent();
+  }, [contentType]);
 
   const fetchCartData = () => {
     setLoading(true);
@@ -59,6 +110,18 @@ function EditCart() {
       });
   };
 
+  const fetchAvailableContent = () => {
+    axios
+      .get(`http://173.230.134.186:5000/api/${contentType.toLowerCase()}-content`)
+      .then((res) => {
+        setAvailableContent(res.data);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError(`Error fetching ${contentType.toLowerCase()} content`);
+      });
+  };
+
   const handleSaveCart = () => {
     setSaving(true);
     axios
@@ -81,27 +144,30 @@ function EditCart() {
 
   // Add new content item to cart
   const handleAddContent = () => {
-    if (!newContentId) {
+    if (!selectedContent) {
       setError('Content ID is required');
       return;
     }
     setError('');
     axios
       .post(`http://173.230.134.186:5000/api/carts/${id}/add-content`, {
-        contentId: parseInt(newContentId, 10),
-        startDate: newStartDate || null,
-        endDate: newEndDate || null,
-        daysOfWeek: newDaysOfWeek || null,
-        startHour: newStartHour !== '' ? parseInt(newStartHour, 10) : null,
-        endHour: newEndHour !== '' ? parseInt(newEndHour, 10) : null,
+        contentType,
+        contentId: selectedContent,
+        ...scheduleData,
+        startHour: scheduleData.startHour ? parseInt(scheduleData.startHour) : null,
+        endHour: scheduleData.endHour ? parseInt(scheduleData.endHour) : null
       })
       .then(() => {
-        setNewContentId('');
-        setNewStartDate('');
-        setNewEndDate('');
-        setNewDaysOfWeek('');
-        setNewStartHour('');
-        setNewEndHour('');
+        setSelectedContent('');
+        setScheduleData({
+          startDate: null,
+          endDate: null,
+          daysOfWeek: [],
+          startHour: '',
+          endHour: ''
+        });
+        setSuccess('Content added successfully');
+        setDialogOpen(false);
         fetchCartData();
       })
       .catch((err) => {
@@ -136,166 +202,209 @@ function EditCart() {
       });
   };
 
+  const getContentTypeIcon = (type) => {
+    switch (type) {
+      case 'MUSIC':
+        return <MusicNote color="primary" />;
+      case 'ADVERTISING':
+        return <Campaign color="secondary" />;
+      case 'STATION':
+        return <Radio color="action" />;
+      default:
+        return null;
+    }
+  };
+
   if (loading) return <p>Loading cart...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
   if (!cart) return <p>Cart not found</p>;
 
   return (
-    <div style={{ margin: '1rem' }}>
-      <h2>Edit Cart (ID: {id})</h2>
-      <div style={{ marginBottom: '1rem' }}>
-        <label>Cart Name: </label>
-        <input
-          type="text"
-          value={cartName}
-          onChange={(e) => setCartName(e.target.value)}
-          style={{ marginRight: '0.5rem' }}
-        />
+    <Box sx={{ p: 3 }}>
+      <Typography variant="h4" gutterBottom>
+        Edit Cart: {cartName}
+      </Typography>
 
-        <label>Category: </label>
-        <input
-          type="text"
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          style={{ marginRight: '0.5rem' }}
-        />
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+      {success && <Alert severity="success" sx={{ mb: 2 }}>{success}</Alert>}
 
-        <label>Station ID: </label>
-        <input
-          type="number"
-          value={stationId}
-          onChange={(e) => setStationId(e.target.value)}
-          style={{ width: '70px', marginRight: '0.5rem' }}
-        />
-
-        <label>Rotation Index: </label>
-        <input
-          type="number"
-          value={rotationIndex}
-          onChange={(e) => setRotationIndex(e.target.value)}
-          style={{ width: '50px', marginRight: '0.5rem' }}
-        />
-
-        <button onClick={handleSaveCart} disabled={saving}>
-          {saving ? 'Saving...' : 'Save Cart'}
-        </button>
-      </div>
-
-      <hr />
-
-      <h3>Add Content to Cart</h3>
-      <div style={{ marginBottom: '0.5rem' }}>
-        <label>Content ID: </label>
-        <input
-          type="number"
-          value={newContentId}
-          onChange={(e) => setNewContentId(e.target.value)}
-          style={{ width: '80px', marginRight: '1rem' }}
-        />
-
-        <label>Start Date: </label>
-        <input
-          type="date"
-          value={newStartDate}
-          onChange={(e) => setNewStartDate(e.target.value)}
-          style={{ marginRight: '0.5rem' }}
-        />
-
-        <label>End Date: </label>
-        <input
-          type="date"
-          value={newEndDate}
-          onChange={(e) => setNewEndDate(e.target.value)}
-          style={{ marginRight: '0.5rem' }}
-        />
-
-        <label>Days (comma): </label>
-        <input
-          type="text"
-          value={newDaysOfWeek}
-          onChange={(e) => setNewDaysOfWeek(e.target.value)}
-          style={{ width: '70px', marginRight: '0.5rem' }}
-        />
-
-        <label>StartHr: </label>
-        <input
-          type="number"
-          value={newStartHour}
-          onChange={(e) => setNewStartHour(e.target.value)}
-          style={{ width: '50px', marginRight: '0.5rem' }}
-        />
-
-        <label>EndHr: </label>
-        <input
-          type="number"
-          value={newEndHour}
-          onChange={(e) => setNewEndHour(e.target.value)}
-          style={{ width: '50px', marginRight: '0.5rem' }}
-        />
-
-        <button onClick={handleAddContent}>Add Content</button>
-      </div>
-
-      <hr />
-
-      <h3>Cart Items</h3>
-      {items.length === 0 && <p>No items in this cart.</p>}
-      {items.length > 0 && (
-        <table
-          border="1"
-          cellPadding="5"
-          style={{ borderCollapse: 'collapse', marginTop: '0.5rem' }}
+      <Box sx={{ mb: 3 }}>
+        <Button
+          variant="contained"
+          startIcon={<Add />}
+          onClick={() => setDialogOpen(true)}
         >
-          <thead>
-            <tr>
-              <th>Item ID</th>
-              <th>Content ID</th>
-              <th>Title</th>
-              <th>Scheduling</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((itm) => {
-              const c = itm.Content;
-              return (
-                <tr key={itm.id}>
-                  <td>{itm.id}</td>
-                  <td>{itm.contentId}</td>
-                  <td>{c ? c.title : '(unknown)'}</td>
-                  <td>
-                    {/* Scheduling info */}
-                    Start: {itm.startDate || ''}, End: {itm.endDate || ''},
-                    Days: {itm.daysOfWeek || ''}, Hrs: {itm.startHour || ''}-
-                    {itm.endHour || ''}
-                  </td>
-                  <td>
-                    <button
-                      onClick={() => {
-                        // example updating scheduling
-                        const updatedFields = {
-                          startDate: itm.startDate,
-                          endDate: itm.endDate,
-                          daysOfWeek: itm.daysOfWeek,
-                          startHour: itm.startHour,
-                          endHour: itm.endHour,
-                        };
-                        // Could pop up a small form or do inline editing
-                        handleUpdateItem(itm.id, updatedFields);
-                      }}
-                    >
-                      Update
-                    </button>{' '}
-                    <button onClick={() => handleRemoveItem(itm.contentId)}>
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
+          Add Content
+        </Button>
+      </Box>
+
+      <Paper sx={{ mb: 3 }}>
+        <Tabs
+          value={contentType}
+          onChange={(e, newValue) => setContentType(newValue)}
+        >
+          <Tab 
+            value="MUSIC" 
+            label="Music" 
+            icon={<MusicNote />} 
+          />
+          <Tab 
+            value="ADVERTISING" 
+            label="Advertising" 
+            icon={<Campaign />} 
+          />
+          <Tab 
+            value="STATION" 
+            label="Station" 
+            icon={<Radio />} 
+          />
+        </Tabs>
+      </Paper>
+
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Type</TableCell>
+              <TableCell>Title</TableCell>
+              <TableCell>Schedule</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {items.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell>
+                  {getContentTypeIcon(item.contentType)}
+                </TableCell>
+                <TableCell>{item.title}</TableCell>
+                <TableCell>
+                  {item.startDate && (
+                    <Typography variant="body2">
+                      {new Date(item.startDate).toLocaleDateString()} - 
+                      {new Date(item.endDate).toLocaleDateString()}
+                    </Typography>
+                  )}
+                  {item.daysOfWeek && (
+                    <Typography variant="body2">
+                      Days: {item.daysOfWeek.join(', ')}
+                    </Typography>
+                  )}
+                  {item.startHour && (
+                    <Typography variant="body2">
+                      Hours: {item.startHour}:00 - {item.endHour}:00
+                    </Typography>
+                  )}
+                </TableCell>
+                <TableCell>
+                  <Chip 
+                    label={item.active ? 'Active' : 'Inactive'}
+                    color={item.active ? 'success' : 'default'}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  <IconButton
+                    onClick={() => handleRemoveItem(item.id)}
+                    size="small"
+                    color="error"
+                  >
+                    <Delete />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)}>
+        <DialogTitle>Add {contentType} Content</DialogTitle>
+        <DialogContent>
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Select Content</InputLabel>
+            <Select
+              value={selectedContent}
+              onChange={(e) => setSelectedContent(e.target.value)}
+            >
+              {availableContent.map((content) => (
+                <MenuItem key={content.id} value={content.id}>
+                  {content.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Box sx={{ mt: 2 }}>
+            <DateTimePicker
+              label="Start Date"
+              value={scheduleData.startDate}
+              onChange={(date) => setScheduleData({...scheduleData, startDate: date})}
+              renderInput={(params) => <TextField {...params} fullWidth />}
+            />
+          </Box>
+
+          <Box sx={{ mt: 2 }}>
+            <DateTimePicker
+              label="End Date"
+              value={scheduleData.endDate}
+              onChange={(date) => setScheduleData({...scheduleData, endDate: date})}
+              renderInput={(params) => <TextField {...params} fullWidth />}
+            />
+          </Box>
+
+          <FormControl fullWidth sx={{ mt: 2 }}>
+            <InputLabel>Days of Week</InputLabel>
+            <Select
+              multiple
+              value={scheduleData.daysOfWeek}
+              onChange={(e) => setScheduleData({...scheduleData, daysOfWeek: e.target.value})}
+              renderValue={(selected) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {selected.map((value) => (
+                    <Chip key={value} label={value} />
+                  ))}
+                </Box>
+              )}
+            >
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map((day) => (
+                <MenuItem key={day} value={day}>
+                  {day}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              label="Start Hour (0-23)"
+              type="number"
+              value={scheduleData.startHour}
+              onChange={(e) => setScheduleData({...scheduleData, startHour: e.target.value})}
+              inputProps={{ min: 0, max: 23 }}
+              fullWidth
+            />
+          </Box>
+
+          <Box sx={{ mt: 2 }}>
+            <TextField
+              label="End Hour (0-23)"
+              type="number"
+              value={scheduleData.endHour}
+              onChange={(e) => setScheduleData({...scheduleData, endHour: e.target.value})}
+              inputProps={{ min: 0, max: 23 }}
+              fullWidth
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleAddContent} variant="contained">
+            Add Content
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <hr />
       {stationId && (
@@ -303,7 +412,7 @@ function EditCart() {
           Back to Carts
         </button>
       )}
-    </div>
+    </Box>
   );
 }
 

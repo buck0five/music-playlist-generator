@@ -24,6 +24,11 @@ const {
   ClockMap,
   ClockMapSlot,
   ContentLibrary,
+  MusicContent,
+  AdvertisingContent,
+  StationContent,
+  ContentLibraryContent,
+  ContentTagging,
 } = require('./models');
 
 async function seed() {
@@ -290,6 +295,128 @@ async function seed() {
     // ========== 10) Assign content to libraries ==========
     await globalMusicLib.addLibraryContent(globalSongB);
     await petAdsLib.addLibraryContent(petAd);
+
+    // ========== 11) Create sample tags
+    const sampleTags = await Tag.bulkCreate([
+      { name: 'Holiday', tagType: 'MUSIC' },
+      { name: 'Branding', tagType: 'STATION' }
+    ]);
+
+    // ========== 12) Create content libraries
+    const libraries = await ContentLibrary.bulkCreate([
+      { name: 'Global Music', type: 'GLOBAL_MUSIC' },
+      { name: 'Retail Ads', type: 'VERTICAL_ADS' },
+      { name: 'Custom Station Content', type: 'STATION_CUSTOM' }
+    ]);
+
+    // ========== 13) Create sample music content
+    const musicContent = await MusicContent.bulkCreate([
+      {
+        title: 'Summer Vibes',
+        artist: 'Beach Band',
+        duration: 180,
+        formats: ['pop', 'summer'],
+        energyLevel: 8,
+        fileName: 'summer_vibes.mp3'
+      },
+      {
+        title: 'Winter Dreams',
+        artist: 'Snow Patrol',
+        duration: 240,
+        formats: ['alternative', 'winter'],
+        energyLevel: 4,
+        fileName: 'winter_dreams.mp3'
+      }
+    ]);
+
+    // ========== 14) Create sample advertising content
+    const advertisingContent = await AdvertisingContent.bulkCreate([
+      {
+        title: 'Summer Sale',
+        duration: 30,
+        campaign: 'Summer 2024',
+        priority: 'high',
+        fileName: 'summer_sale.mp3'
+      },
+      {
+        title: 'Holiday Special',
+        duration: 45,
+        campaign: 'Winter 2024',
+        priority: 'medium',
+        fileName: 'holiday_special.mp3'
+      }
+    ]);
+
+    // ========== 15) Create sample station content
+    const stationContent = await StationContent.bulkCreate([
+      {
+        title: 'Station ID 1',
+        duration: 15,
+        contentType: 'ID',
+        fileName: 'station_id_1.mp3'
+      },
+      {
+        title: 'Weather Update',
+        duration: 20,
+        contentType: 'WEATHER',
+        fileName: 'weather_update.mp3'
+      }
+    ]);
+
+    // ========== 16) Create test station
+    const testStation = await Station.create({
+      name: 'Test Station',
+      settings: {
+        enableTagScoring: true,
+        artistSeparation: 30,
+        formatPercentages: {
+          pop: 50,
+          alternative: 50
+        },
+        contentTypeRatios: {
+          MUSIC: 0.75,
+          ADVERTISING: 0.15,
+          STATION: 0.10
+        }
+      }
+    });
+
+    // ========== 17) Create clock template
+    const template = await ClockTemplate.create({
+      name: 'Standard Hour',
+      description: 'Basic hourly template'
+    });
+
+    // ========== 18) Create template slots
+    await ClockTemplateSlot.bulkCreate([
+      { clockTemplateId: template.id, time: '00:00', type: 'STATION', cartType: 'SID1' },
+      { clockTemplateId: template.id, time: '00:01', type: 'MUSIC' },
+      { clockTemplateId: template.id, time: '00:15', type: 'ADVERTISING', cartType: 'VEN1' },
+      { clockTemplateId: template.id, time: '00:30', type: 'MUSIC' },
+      { clockTemplateId: template.id, time: '00:45', type: 'ADVERTISING', cartType: 'SVC1' }
+    ]);
+
+    // ========== 19) Assign content to libraries
+    await ContentLibraryContent.bulkCreate([
+      { contentLibraryId: libraries[0].id, contentType: 'MUSIC', musicContentId: musicContent[0].id },
+      { contentLibraryId: libraries[0].id, contentType: 'MUSIC', musicContentId: musicContent[1].id },
+      { contentLibraryId: libraries[1].id, contentType: 'ADVERTISING', advertisingContentId: advertisingContent[0].id },
+      { contentLibraryId: libraries[2].id, contentType: 'STATION', stationContentId: stationContent[0].id }
+    ]);
+
+    // ========== 20) Create tag assignments
+    await ContentTagging.bulkCreate([
+      { tagId: tags[0].id, contentType: 'MUSIC', musicContentId: musicContent[0].id, score: 80 },
+      { tagId: tags[1].id, contentType: 'MUSIC', musicContentId: musicContent[1].id, score: 90 },
+      { tagId: tags[3].id, contentType: 'ADVERTISING', advertisingContentId: advertisingContent[0].id, score: 75 },
+      { tagId: tags[4].id, contentType: 'STATION', stationContentId: stationContent[0].id, score: 85 }
+    ]);
+
+    // ========== 21) Set station preferences
+    await StationTagPreference.bulkCreate([
+      { stationId: testStation.id, tagId: tags[0].id, score: 75, weight: 1.0 },
+      { stationId: testStation.id, tagId: tags[1].id, score: 85, weight: 1.2 }
+    ]);
 
     console.log('Enhanced seed data created successfully');
   } catch (error) {

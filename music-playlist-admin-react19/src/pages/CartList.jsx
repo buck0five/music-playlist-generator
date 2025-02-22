@@ -1,85 +1,170 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import { 
+  Box, 
+  Typography, 
+  Button, 
+  Chip, 
+  IconButton, 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableRow,
+  Paper,
+  TableContainer,
+  Tooltip,
+  Alert
+} from '@mui/material';
+import { 
+  Edit, 
+  Delete, 
+  MusicNote, 
+  Campaign, 
+  Radio,
+  PlayArrow 
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
-function CartList() {
-  const [carts, setCarts] = useState([]);
-  const [error, setError] = useState('');
-  const [refreshKey, setRefreshKey] = useState(0);
+const CartList = () => {
   const navigate = useNavigate();
+  const [carts, setCarts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    axios
-      // optionally pass stationId if you want only that station's carts
-      .get('http://173.230.134.186:5000/api/carts')
-      .then((res) => {
-        setCarts(res.data);
-      })
-      .catch((err) => {
-        setError('Error fetching carts');
-        console.error(err);
-      });
-  }, [refreshKey]);
+    fetchCarts();
+  }, []);
 
-  const goToNew = () => {
-    navigate('/carts/new');
+  const fetchCarts = async () => {
+    try {
+      const response = await axios.get('http://173.230.134.186:5000/api/carts');
+      setCarts(response.data);
+    } catch (err) {
+      setError('Error fetching carts');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const goToEdit = (id) => {
-    navigate(`/carts/${id}/edit`);
+  const getContentTypeIcon = (contentType) => {
+    switch (contentType) {
+      case 'MUSIC':
+        return <MusicNote color="primary" />;
+      case 'ADVERTISING':
+        return <Campaign color="secondary" />;
+      case 'STATION':
+        return <Radio color="action" />;
+      default:
+        return null;
+    }
   };
 
-  const handleDelete = (id) => {
-    axios
-      .delete(`http://173.230.134.186:5000/api/carts/${id}`)
-      .then(() => {
-        setRefreshKey((prev) => prev + 1);
-      })
-      .catch((err) => {
+  const getCartTypeChipColor = (cartType) => {
+    switch (cartType) {
+      case 'FRC1':
+        return 'error';
+      case 'SID1':
+      case 'JIN1':
+        return 'primary';
+      case 'VEN1':
+      case 'SVC1':
+        return 'secondary';
+      default:
+        return 'default';
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (window.confirm('Are you sure you want to delete this cart?')) {
+      try {
+        await axios.delete(`http://173.230.134.186:5000/api/carts/${id}`);
+        fetchCarts();
+      } catch (err) {
         setError('Error deleting cart');
-        console.error(err);
-      });
+      }
+    }
   };
 
   return (
-    <div style={{ margin: '1rem' }}>
-      <h2>All Carts</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
+        <Typography variant="h4">Content Carts</Typography>
+        <Button 
+          variant="contained" 
+          onClick={() => navigate('/carts/new')}
+        >
+          Create New Cart
+        </Button>
+      </Box>
 
-      <button onClick={goToNew} style={{ marginBottom: '1rem' }}>
-        New Cart
-      </button>
+      {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-      {carts.length === 0 && !error && <p>No carts found.</p>}
-      {carts.length > 0 && (
-        <table border="1" cellPadding="5" style={{ borderCollapse: 'collapse' }}>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Cart Name</th>
-              <th>Category</th>
-              <th>Station ID</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Station</TableCell>
+              <TableCell>Content Types</TableCell>
+              <TableCell>Items</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
             {carts.map((cart) => (
-              <tr key={cart.id}>
-                <td>{cart.id}</td>
-                <td>{cart.name}</td>
-                <td>{cart.category || ''}</td>
-                <td>{cart.stationId}</td>
-                <td>
-                  <button onClick={() => goToEdit(cart.id)}>Edit</button>{' '}
-                  <button onClick={() => handleDelete(cart.id)}>Delete</button>
-                </td>
-              </tr>
+              <TableRow key={cart.id}>
+                <TableCell>{cart.name}</TableCell>
+                <TableCell>
+                  <Chip 
+                    label={cart.cartType} 
+                    color={getCartTypeChipColor(cart.cartType)}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  {cart.station?.name || 'Global'}
+                </TableCell>
+                <TableCell>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {cart.contentTypes.map((type) => (
+                      <Tooltip key={type} title={type}>
+                        {getContentTypeIcon(type)}
+                      </Tooltip>
+                    ))}
+                  </Box>
+                </TableCell>
+                <TableCell>{cart.itemCount}</TableCell>
+                <TableCell>
+                  <IconButton 
+                    onClick={() => navigate(`/carts/${cart.id}`)}
+                    size="small"
+                  >
+                    <Edit />
+                  </IconButton>
+                  <IconButton 
+                    onClick={() => handleDelete(cart.id)}
+                    size="small"
+                    color="error"
+                  >
+                    <Delete />
+                  </IconButton>
+                  <IconButton 
+                    onClick={() => navigate(`/carts/${cart.id}/preview`)}
+                    size="small"
+                    color="primary"
+                  >
+                    <PlayArrow />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
-}
+};
 
 export default CartList;

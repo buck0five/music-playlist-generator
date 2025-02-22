@@ -1,5 +1,6 @@
 // models/index.js
 
+const { Sequelize } = require('sequelize');
 const sequelize = require('../config/database');
 const { Op } = require('sequelize');
 
@@ -25,6 +26,9 @@ const ContentLibrary = require('./ContentLibrary');
 const Vertical = require('./Vertical');
 const User = require('./User');
 const ContentLibraryContent = require('./ContentLibraryContent');
+const MusicContent = require('./MusicContent');
+const AdvertisingContent = require('./AdvertisingContent');
+const StationContent = require('./StationContent');
 
 
 // If you have User.js / Vertical.js, you can import them too
@@ -199,6 +203,65 @@ User.belongsTo(User, { as: 'parentUser', foreignKey: 'parentUserId' });
 User.hasMany(ContentLibrary, { foreignKey: 'userId' });
 ContentLibrary.belongsTo(User, { foreignKey: 'userId' });
 
+// Content Library Associations
+ContentLibrary.belongsToMany(MusicContent, {
+  through: ContentLibraryContent,
+  foreignKey: 'libraryId',
+  otherKey: 'musicContentId',
+  constraints: false
+});
+
+ContentLibrary.belongsToMany(AdvertisingContent, {
+  through: ContentLibraryContent,
+  foreignKey: 'libraryId',
+  otherKey: 'advertisingContentId',
+  constraints: false
+});
+
+ContentLibrary.belongsToMany(StationContent, {
+  through: ContentLibraryContent,
+  foreignKey: 'libraryId',
+  otherKey: 'stationContentId',
+  constraints: false
+});
+
+// Cart Associations
+Cart.belongsToMany(MusicContent, {
+  through: CartItem,
+  foreignKey: 'cartId',
+  otherKey: 'musicContentId',
+  constraints: false
+});
+
+Cart.belongsToMany(AdvertisingContent, {
+  through: CartItem,
+  foreignKey: 'cartId',
+  otherKey: 'advertisingContentId',
+  constraints: false
+});
+
+Cart.belongsToMany(StationContent, {
+  through: CartItem,
+  foreignKey: 'cartId',
+  otherKey: 'stationContentId',
+  constraints: false
+});
+
+// Tag Associations
+[MusicContent, AdvertisingContent, StationContent].forEach(model => {
+  model.belongsToMany(Tag, {
+    through: ContentTag,
+    foreignKey: `${model.name.toLowerCase()}Id`,
+    otherKey: 'tagId'
+  });
+});
+
+// PlaybackLog Associations
+PlaybackLog.belongsTo(Station);
+PlaybackLog.belongsTo(MusicContent, { constraints: false });
+PlaybackLog.belongsTo(AdvertisingContent, { constraints: false });
+PlaybackLog.belongsTo(StationContent, { constraints: false });
+
 // Export
 module.exports = {
   sequelize,
@@ -223,4 +286,8 @@ module.exports = {
   ContentLibrary,
   Vertical,
   User,
+  MusicContent,
+  AdvertisingContent,
+  StationContent,
+  ContentLibraryContent,
 };
