@@ -434,16 +434,162 @@ Custom Upload Process:
   - User-specific
   - Flexible content types
 
-<!-- 
-This project follows a three-tier architecture:
-1. Frontend React application for admin interface
-2. Node.js/Express backend API
-3. SQL database for data persistence
+### User Interface & Cart System Architecture
 
-Key technical considerations include:
-- JWT-based authentication
-- Role-based access control
-- Hierarchical data relationships
-- Real-time drag-and-drop interactions
-- Audio format standardization
--->
+#### Overview
+The system uses a two-layer architecture to separate user-facing simplicity from powerful backend control:
+1. **User Interface Layer**: Business owners see familiar concepts (ad categories, music styles)
+2. **Technical Layer**: Admins control content flow through cart system and clock templates
+
+#### End-User Interface
+- **Advertisement Categories**
+  - Users see business-relevant groupings:
+    - Product Categories (e.g., "Pet Food", "Hardware")
+    - Service Categories (e.g., "Grooming", "Training")
+    - Promotional Categories (e.g., "Sales", "Events")
+  - Simple scheduling interface:
+    - Calendar-based date selection
+    - Business hour alignment
+    - Basic frequency controls
+  - ✓ Implemented: Basic category management
+  - Planned: Enhanced category builder for admins
+  
+- **Music Programming**
+  - Format selection from admin-defined music styles:
+    - Pure genres (Rock, Country, Jazz, etc.)
+    - Mixed categories (80s Hits, Classic Rock, etc.)
+    - Custom format definitions
+  - Percentage-based mixing between styles
+  - Preview descriptions of atmosphere impact
+  - ✓ Implemented: Basic style selection
+  - ✓ Implemented: ~20 initial format definitions
+  - Planned: Style preview system
+  - Planned: Enhanced format builder for admins
+
+#### Cart System Implementation
+
+##### Standard Content Carts
+- **Category-Cart Mapping**
+  - Admins define advertising categories
+  - Each category maps to specific cart type(s)
+  - Example structure:
+    ```json
+    {
+      "Pet Food Ads": {
+        "cartType": "VEN1",
+        "scheduling": {
+          "maxPerHour": 2,
+          "defaultDuration": 30
+        }
+      },
+      "Grooming Services": {
+        "cartType": "SVC1",
+        "scheduling": {
+          "maxPerHour": 1,
+          "defaultDuration": 60
+        }
+      }
+    }
+    ```
+  - ✓ Implemented: Basic cart creation and mapping
+  - Planned: Enhanced scheduling rules
+
+##### System Carts
+- **Force Carts (FRC1)**
+  - Admin-only content insertion
+  - Not visible in user interface
+  - Used for:
+    - Emergency broadcasts
+    - Required announcements
+    - Network-wide promotions
+  - ✓ Implemented: Basic force cart functionality
+  - Planned: Priority levels and override rules
+
+- **Other System Carts**
+  - Station ID Carts (SID1)
+  - Time Check Carts (TIM1)
+  - Weather Update Carts (WEA1)
+  - ✓ Implemented: Basic cart types
+  - Planned: Expanded system cart variety
+
+#### Clock Template Integration
+- **Cart Placement**
+  - Admins create clock templates
+  - Templates specify:
+    - Standard cart positions (VEN1, SVC1)
+    - System cart positions (FRC1, SID1)
+    - Music positions
+  - Example clock structure:
+    ```json
+    {
+      "hour": 1,
+      "slots": [
+        {"time": "00:00", "type": "SID1"},
+        {"time": "00:01", "type": "MUSIC"},
+        {"time": "00:15", "type": "VEN1"},
+        {"time": "00:30", "type": "SVC1"},
+        {"time": "00:45", "type": "FRC1"}
+      ]
+    }
+    ```
+  - ✓ Implemented: Basic clock template system
+  - Planned: Dynamic slot adjustment
+
+#### Content Flow Process
+1. **User Actions**
+   - Select ad categories
+   - Set scheduling preferences
+   - Choose music styles
+   
+2. **System Processing**
+   - Maps categories to appropriate carts
+   - Applies scheduling rules
+   - Integrates system carts
+   - Follows clock template structure
+   
+3. **Playlist Generation**
+   - Combines all cart types
+   - Respects priority levels
+   - Maintains format percentages
+   - Generates final M3U output
+
+#### Administrative Control
+- **Category Management**
+  - Create/edit advertising categories
+  - Define cart type associations
+  - Set scheduling parameters
+  - ✓ Implemented: Basic category management
+  - Planned: Category builder interface
+
+- **Cart Configuration**
+  - Define cart types and rules
+  - Set priority levels
+  - Configure scheduling restrictions
+  - ✓ Implemented: Basic cart management
+  - Planned: Enhanced scheduling rules
+
+- **System Settings**
+  - Force cart override rules
+  - System cart scheduling
+  - Emergency broadcast settings
+  - ✓ Implemented: Basic system settings
+  - Planned: Advanced override controls
+
+#### Implementation Status
+- **Core Features**
+  - ✓ Basic cart system
+  - ✓ Category-cart mapping
+  - ✓ Clock template integration
+  - ✓ Force cart functionality
+  
+- **In Development**
+  - Enhanced scheduling rules
+  - Category builder interface
+  - Advanced override controls
+  - Dynamic slot adjustment
+  
+- **Future Plans**
+  - Multi-level priority system
+  - Smart conflict resolution
+  - Real-time schedule updates
+  - Advanced reporting tools
