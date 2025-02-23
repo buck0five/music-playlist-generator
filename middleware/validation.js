@@ -9,7 +9,7 @@ const { ContentLibrary } = require('../models');
  * @param {Function} next - Express next middleware function
  */
 const validateContentLibrary = (req, res, next) => {
-  const { name, description, userId, verticalId } = req.body;
+  const { name, description, userId, verticalId, libraryType } = req.body;
   const errors = [];
 
   // Validate name
@@ -32,6 +32,15 @@ const validateContentLibrary = (req, res, next) => {
   // Validate verticalId if provided
   if (verticalId !== undefined && verticalId !== null && !Number.isInteger(Number(verticalId))) {
     errors.push('Vertical ID must be a valid integer');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+  
+  // New validations
+  if (libraryType && !['GLOBAL_MUSIC', 'VERTICAL_MUSIC', 'VERTICAL_ADS', 'STATION_CUSTOM'].includes(libraryType)) {
+    errors.push('Invalid library type. Must be GLOBAL_MUSIC, VERTICAL_MUSIC, VERTICAL_ADS, or STATION_CUSTOM');
   }
 
   if (errors.length > 0) {

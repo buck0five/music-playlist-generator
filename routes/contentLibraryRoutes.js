@@ -21,17 +21,41 @@ router.get('/', async (req, res) => {
 // POST /api/content-libraries -> create a new library
 router.post('/', validateContentLibrary, async (req, res) => {
   try {
-    const { name, description, userId, verticalId } = req.body;
+    const { 
+      name, 
+      description, 
+      userId, 
+      verticalId,
+      libraryType = 'GLOBAL_MUSIC', // Default value
+      contentTypes = [],
+      isAdLibrary = false,
+      adminOnly = false,
+      restrictions = {},
+      metadata = {}
+    } = req.body;
+
     const newLib = await ContentLibrary.create({
       name,
       description,
       userId: userId || null,
       verticalId: verticalId || null,
+      libraryType,
+      contentTypes,
+      isAdLibrary,
+      adminOnly,
+      restrictions,
+      metadata
     });
+    
     res.json(newLib);
   } catch (err) {
     console.error('Error creating content library:', err);
-    res.status(500).json({ error: 'Server error creating library.' });
+    // Include error details in development
+    const errorResponse = {
+      error: 'Server error creating library.',
+      ...(process.env.NODE_ENV === 'development' && { details: err.message })
+    };
+    res.status(500).json(errorResponse);
   }
 });
 
