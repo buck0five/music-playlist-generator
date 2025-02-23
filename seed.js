@@ -1,147 +1,340 @@
-const {
-  sequelize,
-  MusicContent,
-  AdvertisingContent,
-  StationContent
+const sequelize = require('./config/database');
+const { 
+  MusicContent, 
+  AdvertisingContent, 
+  ContentLibrary,
+  User,
+  Station,
+  Vertical,
+  Campaign 
 } = require('./models');
+
+const currentDate = new Date('2025-02-23 04:53:26');
+
+const musicContents = [
+  {
+    title: 'Summer Breeze',
+    artist: 'Chill Wave',
+    album: 'Beach Vibes',
+    genre: 'Electronic',
+    fileName: 'summer-breeze.mp3',
+    duration: 180,
+    tempo: 'medium',
+    energy: 'high',
+    mood: 'happy',
+    dayPartRestrictions: [],
+    genres: ['Electronic', 'Chill'],
+    formats: ['Contemporary'],
+    energyLevel: 7,
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    title: 'Mountain Echo',
+    artist: 'Nature Sounds',
+    album: 'Peaceful Moments',
+    genre: 'Ambient',
+    fileName: 'mountain-echo.mp3',
+    duration: 240,
+    tempo: 'slow',
+    energy: 'low',
+    mood: 'relaxed',
+    dayPartRestrictions: [],
+    genres: ['Ambient', 'Nature'],
+    formats: ['Easy Listening'],
+    energyLevel: 3,
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    title: 'City Lights',
+    artist: 'Urban Beat',
+    album: 'Night Drive',
+    genre: 'Pop',
+    fileName: 'city-lights.mp3',
+    duration: 200,
+    tempo: 'fast',
+    energy: 'high',
+    mood: 'energetic',
+    dayPartRestrictions: [],
+    genres: ['Pop', 'Electronic'],
+    formats: ['Contemporary', 'Top 40'],
+    energyLevel: 8,
+    createdAt: currentDate,
+    updatedAt: currentDate
+  }
+];
+
+const campaigns = [
+  {
+    name: 'Spring 2025 Promotions',
+    description: 'Spring season promotional campaign',
+    startDate: new Date('2025-03-01'),
+    endDate: new Date('2025-03-31'),
+    status: 'SCHEDULED',
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    name: 'Restaurant Launch Campaign',
+    description: 'New restaurant opening promotional campaign',
+    startDate: new Date('2025-03-10'),
+    endDate: new Date('2025-04-10'),
+    status: 'SCHEDULED',
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    name: 'Insurance Awareness Campaign',
+    description: 'Insurance awareness promotional campaign',
+    startDate: new Date('2025-03-01'),
+    endDate: new Date('2025-05-31'),
+    status: 'SCHEDULED',
+    createdAt: currentDate,
+    updatedAt: currentDate
+  }
+];
+
+const advertisingContents = [
+  {
+    title: 'Spring Sale Event',
+    fileName: 'spring-sale.mp3',
+    duration: 30,
+    clientName: 'Department Store',
+    priority: 5,
+    minMinutesBetweenPlays: 30,
+    startDate: new Date('2025-03-01'),
+    endDate: new Date('2025-03-15'),
+    playHourRestrictions: [],
+    verticalRestrictions: [],
+    playCount: 0,
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    title: 'New Restaurant Opening',
+    fileName: 'restaurant-opening.mp3',
+    duration: 45,
+    clientName: 'Fine Dining Inc',
+    priority: 3,
+    minMinutesBetweenPlays: 30,
+    startDate: new Date('2025-03-10'),
+    endDate: new Date('2025-04-10'),
+    playHourRestrictions: [],
+    verticalRestrictions: [],
+    playCount: 0,
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    title: 'Insurance Awareness',
+    fileName: 'insurance-ad.mp3',
+    duration: 20,
+    clientName: 'Insurance Co',
+    priority: 1,
+    minMinutesBetweenPlays: 30,
+    startDate: new Date('2025-03-01'),
+    endDate: new Date('2025-05-31'),
+    playHourRestrictions: [],
+    verticalRestrictions: [],
+    playCount: 0,
+    createdAt: currentDate,
+    updatedAt: currentDate
+  }
+];
+
+const contentLibraries = [
+  {
+    name: 'Default Music Library',
+    description: 'General music collection for all stations',
+    libraryType: 'GLOBAL_MUSIC',
+    contentTypes: ['MUSIC'],
+    isAdLibrary: false,
+    adminOnly: false,
+    restrictions: {},
+    metadata: {},
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    name: 'Primary Ad Library',
+    description: 'Main advertising content collection',
+    libraryType: 'GLOBAL_MUSIC',
+    contentTypes: ['ADVERTISING'],
+    isAdLibrary: true,
+    adminOnly: false,
+    restrictions: {},
+    metadata: {},
+    createdAt: currentDate,
+    updatedAt: currentDate
+  }
+];
+
+const users = [
+  {
+    name: 'Buck0five',
+    username: 'buck0five',
+    email: 'buck0five@example.com',
+    role: 'ADMIN',
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    name: 'Station Manager',
+    username: 'station_manager',
+    email: 'manager@example.com',
+    role: 'MANAGER',
+    createdAt: currentDate,
+    updatedAt: currentDate
+  }
+];
+
+const verticals = [
+  {
+    name: 'General Entertainment',
+    description: 'General entertainment vertical',
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    name: 'Sports',
+    description: 'Sports-focused vertical',
+    createdAt: currentDate,
+    updatedAt: currentDate
+  }
+];
+
+const stations = [
+  {
+    name: 'Station One',
+    description: 'Our first test station',
+    verticalId: 1,
+    settings: {
+      adFrequency: 2,
+      maxAdDuration: 60,
+      contentFilters: []
+    },
+    createdAt: currentDate,
+    updatedAt: currentDate
+  },
+  {
+    name: 'Station Two',
+    description: 'Our second test station',
+    verticalId: 2,
+    settings: {
+      adFrequency: 3,
+      maxAdDuration: 45,
+      contentFilters: []
+    },
+    createdAt: currentDate,
+    updatedAt: currentDate
+  }
+];
+
+// ... (keep all the existing code until the seed function)
+
+// ... (keep all the existing imports and data arrays)
 
 async function seed() {
   try {
-    // Sync all models
     await sequelize.sync({ force: true });
     console.log('Database synced with force: true');
 
-    // Create music entries
-    const musicEntries = [
-      {
-        title: "Summer Breeze",
-        artist: "Beach Band",
-        duration: 180,
-        energyLevel: 4,
-        formats: ["MP3"],
-        fileName: "summer-breeze.mp3",
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
-      },
-      {
-        title: "Urban Night",
-        artist: "Electronic Minds",
-        duration: 240,
-        energyLevel: 8,
-        formats: ["WAV"],
-        fileName: "urban-night.wav",
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
-      },
-      {
-        title: "Mountain Echo",
-        artist: "Nature Sounds",
-        duration: 300,
-        energyLevel: 2,
-        formats: ["FLAC"],
-        fileName: "mountain-echo.flac",
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
+    try {
+      // 1. Create users first
+      await User.bulkCreate(users);
+      console.log('Users created');
+
+      // 2. Create verticals
+      await Vertical.bulkCreate(verticals);
+      console.log('Verticals created');
+
+      // 3. Create stations
+      await Station.bulkCreate(stations);
+      console.log('Stations created');
+
+      // 4. Create content libraries
+      await ContentLibrary.bulkCreate(contentLibraries);
+      console.log('Content libraries created');
+
+      // 5. Create music content
+      await MusicContent.bulkCreate(musicContents);
+      console.log('Music entries created');
+
+      // 6. Create campaigns
+      await Campaign.bulkCreate(campaigns);
+      console.log('Campaigns created');
+
+      // 7. Get campaign IDs
+      const createdCampaigns = await Campaign.findAll();
+      
+      // 8. Assign campaign IDs to advertising contents
+      const advertisingContentsWithCampaigns = advertisingContents.map((content, index) => ({
+        ...content,
+        campaignId: createdCampaigns[index].id
+      }));
+
+      // 9. Create advertising content
+      await AdvertisingContent.bulkCreate(advertisingContentsWithCampaigns);
+      console.log('Advertising entries created');
+
+      // Add associations
+      const musicLibrary = await ContentLibrary.findOne({
+        where: { isAdLibrary: false }
+      });
+
+      const adLibrary = await ContentLibrary.findOne({
+        where: { isAdLibrary: true }
+      });
+
+      const musicContent = await MusicContent.findAll();
+      const adContent = await AdvertisingContent.findAll();
+
+      // Create ContentLibraryContent associations for music
+      if (musicLibrary && musicContent.length > 0) {
+        const musicAssociations = musicContent.map(music => ({
+          contentLibraryId: musicLibrary.id,
+          musicContentId: music.id,
+          contentType: 'MUSIC',
+          addedAt: new Date('2025-02-23 05:00:29'),
+          createdAt: currentDate,
+          updatedAt: currentDate
+        }));
+        await sequelize.models.ContentLibraryContent.bulkCreate(musicAssociations);
       }
-    ];
 
-    // Create advertising entries
-    const advertisingEntries = [
-      {
-        title: "Spring Sale Event",
-        duration: 30,
-        campaign: "Spring 2025",
-        priority: "high",
-        fileName: "spring-sale.mp3",
-        startDate: new Date("2025-03-01T00:00:00Z"),
-        endDate: new Date("2025-03-15T23:59:59Z"),
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
-      },
-      {
-        title: "New Restaurant Opening",
-        duration: 45,
-        campaign: "Grand Opening",
-        priority: "medium",
-        fileName: "restaurant-opening.mp3",
-        startDate: new Date("2025-03-10T00:00:00Z"),
-        endDate: new Date("2025-04-10T23:59:59Z"),
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
-      },
-      {
-        title: "Insurance Awareness",
-        duration: 20,
-        campaign: "Protection Plus",
-        priority: "low",
-        fileName: "insurance-ad.mp3",
-        startDate: new Date("2025-03-01T00:00:00Z"),
-        endDate: new Date("2025-05-31T23:59:59Z"),
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
+      // Create ContentLibraryContent associations for ads 
+      if (adLibrary && adContent.length > 0) {
+        const adAssociations = adContent.map(ad => ({
+          contentLibraryId: adLibrary.id,
+          advertisingContentId: ad.id,
+          contentType: 'ADVERTISING',
+          addedAt: new Date('2025-02-23 05:00:29'),
+          createdAt: currentDate,
+          updatedAt: currentDate
+        }));
+        await sequelize.models.ContentLibraryContent.bulkCreate(adAssociations);
       }
-    ];
 
-    // Create station entries
-    const stationEntries = [
-      {
-        title: "Morning News Update",
-        contentType: "NEWS",
-        duration: 120,
-        station: "WXYZ",
-        fileName: "morning-news.mp3",
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
-      },
-      {
-        title: "Weather Report",
-        contentType: "WEATHER",
-        duration: 60,
-        station: "WXYZ",
-        fileName: "weather.mp3",
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
-      },
-      {
-        title: "Station ID",
-        contentType: "ID",
-        duration: 10,
-        station: "WXYZ",
-        fileName: "station-id.mp3",
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
-      },
-      {
-        title: "Weekend Special",
-        contentType: "PROMO",
-        duration: 30,
-        station: "WXYZ",
-        fileName: "weekend-promo.mp3",
-        createdAt: new Date("2025-02-22T21:50:55Z"),
-        updatedAt: new Date("2025-02-22T21:50:55Z")
-      }
-    ];
+      console.log('Content associations created');
 
-    // Bulk create all entries
-    await MusicContent.bulkCreate(musicEntries);
-    console.log('Music entries created');
-    
-    await AdvertisingContent.bulkCreate(advertisingEntries);
-    console.log('Advertising entries created');
-    
-    await StationContent.bulkCreate(stationEntries);
-    console.log('Station entries created');
+    } catch (err) {
+      console.error('Error during seeding:', err);
+      console.error('Full error:', JSON.stringify(err, null, 2));
+      throw err;
+    }
 
-    console.log('Database seeded successfully!');
-  } catch (error) {
-    console.error('Seeding error:', error);
-    throw error;
+    console.log('Seeding completed successfully');
+  } catch (err) {
+    console.error('Fatal seeding error:', err);
+    throw err;
   } finally {
     await sequelize.close();
   }
 }
 
 // Execute the seed function
-seed().catch(console.error);
-
-module.exports = seed;
+seed().catch(err => {
+  console.error('Seeding failed:', err);
+  process.exit(1);
+});

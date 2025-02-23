@@ -168,13 +168,13 @@ AdvertisingContent.init({
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'Campaign',
+      model: 'campaigns',
       key: 'id'
     }
   },
   clientName: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true
   },
   priority: {
     type: DataTypes.INTEGER,
@@ -291,8 +291,12 @@ AdvertisingContent.init({
 // Define associations
 AdvertisingContent.associate = (models) => {
   AdvertisingContent.belongsToMany(models.ContentLibrary, {
-    through: 'AdvertisingContentLibrary',
-    foreignKey: 'advertisingContentId'
+    through: models.ContentLibraryContent,  // Use the shared through table
+    foreignKey: 'contentId',
+    constraints: false,
+    scope: {
+      contentType: 'ADVERTISING'
+    }
   });
   
   AdvertisingContent.hasMany(models.PlaybackLog, {
@@ -303,5 +307,4 @@ AdvertisingContent.associate = (models) => {
     foreignKey: 'campaignId'
   });
 };
-
 module.exports = AdvertisingContent; 

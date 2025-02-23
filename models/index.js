@@ -29,7 +29,7 @@ const ContentLibraryContent = require('./ContentLibraryContent');
 const MusicContent = require('./MusicContent');
 const AdvertisingContent = require('./AdvertisingContent');
 const StationContent = require('./StationContent');
-
+const Campaign = require('./Campaign');
 
 // If you have User.js / Vertical.js, you can import them too
 
@@ -262,6 +262,16 @@ PlaybackLog.belongsTo(MusicContent, { constraints: false });
 PlaybackLog.belongsTo(AdvertisingContent, { constraints: false });
 PlaybackLog.belongsTo(StationContent, { constraints: false });
 
+// Campaign Associations
+Campaign.hasMany(AdvertisingContent, {
+  foreignKey: 'campaignId',
+  as: 'advertisements'
+});
+AdvertisingContent.belongsTo(Campaign, {
+  foreignKey: 'campaignId',
+  as: 'campaign'
+});
+
 // Export
 module.exports = {
   sequelize,
@@ -289,5 +299,6 @@ module.exports = {
   MusicContent,
   AdvertisingContent,
   StationContent,
+  Campaign,
   ContentLibraryContent,
 };

@@ -206,13 +206,16 @@ MusicContent.init({
 // Define associations
 MusicContent.associate = (models) => {
   MusicContent.belongsToMany(models.ContentLibrary, {
-    through: 'MusicContentLibrary',
-    foreignKey: 'musicContentId'
+    through: models.ContentLibraryContent,  // Use the shared through table
+    foreignKey: 'contentId',
+    constraints: false,
+    scope: {
+      contentType: 'MUSIC'
+    }
   });
   
   MusicContent.hasMany(models.PlaybackLog, {
     foreignKey: 'musicContentId'
   });
 };
-
 module.exports = MusicContent; 

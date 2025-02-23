@@ -1,14 +1,6 @@
-// models/ContentLibraryContent.js
-
 const { DataTypes, Model } = require('sequelize');
 const sequelize = require('../config/database');
 
-/**
- * ContentLibraryContent Model
- * Join table between ContentLibrary and various content types
- * (music, advertising, station content)
- * @extends Model
- */
 class ContentLibraryContent extends Model {}
 
 ContentLibraryContent.init({
@@ -18,17 +10,15 @@ ContentLibraryContent.init({
     autoIncrement: true
   },
   
-  // Library reference
   contentLibraryId: {
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'ContentLibrary',
+      model: 'content_libraries',  // Using table name instead of model name
       key: 'id'
     }
   },
 
-  // Content type identifier
   contentType: {
     type: DataTypes.ENUM('MUSIC', 'ADVERTISING', 'STATION'),
     allowNull: false,
@@ -39,12 +29,11 @@ ContentLibraryContent.init({
     }
   },
 
-  // Optional content references - only one should be set
   musicContentId: {
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'MusicContent',
+      model: 'music_contents',  // Using table name instead of model name
       key: 'id'
     }
   },
@@ -53,21 +42,17 @@ ContentLibraryContent.init({
     type: DataTypes.INTEGER,
     allowNull: true,
     references: {
-      model: 'AdvertisingContent',
+      model: 'advertising_contents',  // Using table name instead of model name
       key: 'id'
     }
   },
 
+  // Keeping stationContentId but removing its reference constraint
   stationContentId: {
     type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'StationContent',
-      key: 'id'
-    }
+    allowNull: true
   },
 
-  // Metadata for the relationship
   addedAt: {
     type: DataTypes.DATE,
     allowNull: false,
@@ -76,11 +61,7 @@ ContentLibraryContent.init({
 
   addedBy: {
     type: DataTypes.INTEGER,
-    allowNull: true,
-    references: {
-      model: 'User',
-      key: 'id'
-    }
+    allowNull: true
   }
 }, {
   sequelize,
@@ -92,7 +73,6 @@ ContentLibraryContent.init({
     { fields: ['musicContentId'] },
     { fields: ['advertisingContentId'] },
     { fields: ['stationContentId'] },
-    // Composite indexes for efficient lookups
     { fields: ['contentLibraryId', 'contentType'] },
     { fields: ['contentLibraryId', 'musicContentId'] },
     { fields: ['contentLibraryId', 'advertisingContentId'] },
@@ -100,32 +80,26 @@ ContentLibraryContent.init({
   ],
   validate: {
     validateContentReference() {
-      const contentIds = [
-        this.musicContentId,
-        this.advertisingContentId,
-        this.stationContentId
-      ].filter(id => id !== null);
-
-      if (contentIds.length !== 1) {
-        throw new Error('Exactly one content reference must be set');
-      }
-
-      // Validate content type matches reference
+      // Only validate MUSIC and ADVERTISING types for now
       switch (this.contentType) {
         case 'MUSIC':
           if (!this.musicContentId) {
             throw new Error('Music content type requires musicContentId');
+          }
+          if (this.advertisingContentId || this.stationContentId) {
+            throw new Error('Music content type cannot have other content IDs set');
           }
           break;
         case 'ADVERTISING':
           if (!this.advertisingContentId) {
             throw new Error('Advertising content type requires advertisingContentId');
           }
+          if (this.musicContentId || this.stationContentId) {
+            throw new Error('Advertising content type cannot have other content IDs set');
+          }
           break;
         case 'STATION':
-          if (!this.stationContentId) {
-            throw new Error('Station content type requires stationContentId');
-          }
+          // Skip validation for STATION type since it's not implemented yet
           break;
       }
     }
@@ -144,15 +118,6 @@ ContentLibraryContent.associate = (models) => {
 
   ContentLibraryContent.belongsTo(models.AdvertisingContent, {
     foreignKey: 'advertisingContentId'
-  });
-
-  ContentLibraryContent.belongsTo(models.StationContent, {
-    foreignKey: 'stationContentId'
-  });
-
-  ContentLibraryContent.belongsTo(models.User, {
-    foreignKey: 'addedBy',
-    as: 'addedByUser'
   });
 };
 
